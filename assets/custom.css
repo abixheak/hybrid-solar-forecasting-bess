@@ -1,0 +1,205 @@
+/* Antigravity Glassmorphic Dark Mode Design System */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+    background-color: #0b0f19 !important;
+    color: #f8fafc;
+}
+
+/* Main background styling */
+.stApp {
+    background: radial-gradient(circle at 50% 0%, #152033 0%, #0b0f19 75%);
+}
+
+/* Glassmorphism Container Card */
+.glass-card {
+    background: rgba(22, 31, 49, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+    border-color: rgba(0, 242, 254, 0.3);
+    box-shadow: 0 12px 40px 0 rgba(0, 242, 254, 0.15);
+}
+
+/* Hero Header Banner */
+.hero-banner {
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.15) 0%, rgba(79, 172, 254, 0.05) 100%);
+    border: 1px solid rgba(0, 242, 254, 0.25);
+    border-radius: 20px;
+    padding: 28px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-banner h1 {
+    font-weight: 800;
+    font-size: 2.2rem;
+    background: linear-gradient(90deg, #ffffff 0%, #00f2fe 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+}
+
+.hero-banner p {
+    color: #94a3b8;
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+/* Live Pulse Badge */
+.live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(6, 214, 160, 0.15);
+    border: 1px solid rgba(6, 214, 160, 0.3);
+    color: #06d6a0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 20px;
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #06d6a0;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #06d6a0;
+    animation: pulse 1.8s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(6, 214, 160, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(6, 214, 160, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(6, 214, 160, 0); }
+}
+
+/* Metric KPI Cards */
+.metric-card {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+}
+
+.metric-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.metric-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 6px 0 2px 0;
+}
+
+.metric-delta {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.delta-positive { color: #06d6a0; }
+.delta-negative { color: #ef476f; }
+.delta-neutral { color: #ffb703; }
+
+/* Custom Sidebar Styling */
+section[data-testid="stSidebar"] {
+    background-color: #0d1322 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Streamlit Tabs Customization */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+    background-color: rgba(15, 23, 42, 0.8);
+    padding: 6px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stTabs [data-baseweb="tab"] {
+    border-radius: 8px;
+    padding: 10px 20px;
+    color: #94a3b8;
+    font-weight: 500;
+    border: none !important;
+}
+
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%) !important;
+    color: #0b0f19 !important;
+    font-weight: 700 !important;
+}
+
+/* Primary Button Styling */
+.stButton > button {
+    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+    color: #0b0f19;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 24px;
+    box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+    transition: all 0.2s ease;
+}
+
+.stButton > button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 242, 254, 0.5);
+    color: #0b0f19;
+}
+
+/* Login Screen Styling */
+.login-box {
+    background: rgba(22, 31, 49, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 242, 254, 0.25);
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5), 0 0 25px 0 rgba(0, 242, 254, 0.15);
+    border-radius: 20px;
+    padding: 36px 32px;
+    max-width: 440px;
+    margin: 40px auto;
+    text-align: center;
+}
+
+.login-header {
+    font-weight: 800;
+    font-size: 1.8rem;
+    background: linear-gradient(90deg, #ffffff 0%, #00f2fe 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+}
+
+.login-subtitle {
+    color: #94a3b8;
+    font-size: 0.95rem;
+    margin-bottom: 24px;
+}
+
+/* Footer Styling */
+.custom-footer {
+    text-align: center;
+    padding: 24px;
+    color: #64748b;
+    font-size: 0.85rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin-top: 40px;
+}
