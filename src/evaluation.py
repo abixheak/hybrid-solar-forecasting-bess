@@ -19,7 +19,7 @@ def calculate_mape(y_true: np.ndarray, y_pred: np.ndarray, epsilon: float = 1.0)
 
 def evaluate_predictions(y_true: np.ndarray, y_pred: np.ndarray, model_name: str = "Model") -> Dict[str, Any]:
     """
-    Compute empirical evaluation metrics: MAE, RMSE, MAPE, R-squared.
+    Compute empirical evaluation metrics: MAE, RMSE, MAPE, Accuracy %, R-squared.
     """
     y_true = np.array(y_true, dtype=np.float64)
     y_pred = np.array(y_pred, dtype=np.float64)
@@ -28,9 +28,11 @@ def evaluate_predictions(y_true: np.ndarray, y_pred: np.ndarray, model_name: str
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
     mape = calculate_mape(y_true, y_pred)
     r2 = r2_score(y_true, y_pred)
+    accuracy_pct = max(0.0, min(100.0, 100.0 - mape))
 
     return {
         "Model": model_name,
+        "Accuracy (%)": round(float(accuracy_pct), 2),
         "MAE (kW)": round(float(mae), 3),
         "RMSE (kW)": round(float(rmse), 3),
         "MAPE (%)": round(float(mape), 2),

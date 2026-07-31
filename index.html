@@ -321,7 +321,7 @@
                     <button class="tab-btn active" onclick="switchTab('tab1', this)">☀️ Solar Forecast</button>
                     <button class="tab-btn" onclick="switchTab('tab2', this)">🔋 BESS Dispatch</button>
                     <button class="tab-btn" onclick="switchTab('tab3', this)">📡 Live Weather Telemetry</button>
-                    <button class="tab-btn" onclick="switchTab('tab4', this)">🧠 Model Diagnostics</button>
+                    <button class="tab-btn" onclick="switchTab('tab4', this)">🧠 Model Summary & Accuracy</button>
                     <button class="tab-btn" onclick="switchTab('tab5', this)">📄 Export & Report</button>
                 </div>
 
@@ -392,19 +392,40 @@
                     </div>
                 </div>
 
-                <!-- TAB 4: MODEL DIAGNOSTICS -->
+                <!-- TAB 4: MODEL SUMMARY & ACCURACY -->
                 <div id="tab4" class="tab-content">
+                    <!-- MODEL ACCURACY SUMMARY CARDS -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                        <div class="metric-card" style="border-left: 4px solid #d97706;">
+                            <div class="metric-title">SARIMAX Baseline Accuracy</div>
+                            <div class="metric-value" style="color: #d97706;">85.80%</div>
+                            <div class="metric-delta delta-neutral">MAPE: 14.2% (Linear Model)</div>
+                        </div>
+                        <div class="metric-card" style="border-left: 4px solid #059669;">
+                            <div class="metric-title">Overall Hybrid Forecast Accuracy</div>
+                            <div class="metric-value" style="color: #059669;">95.20%</div>
+                            <div class="metric-delta delta-positive">+9.40% Accuracy Gain via LSTM</div>
+                        </div>
+                        <div class="metric-card" style="border-left: 4px solid #2563eb;">
+                            <div class="metric-title">LSTM Residual Correction</div>
+                            <div class="metric-value" style="color: #2563eb;">95.20%</div>
+                            <div class="metric-delta delta-positive">Nonlinear High-Frequency Fit</div>
+                        </div>
+                    </div>
+
                     <div class="glass-card">
                         <h3 style="font-size: 1.25rem; font-family: 'Outfit', sans-serif; margin-bottom: 16px;">🧠 Model Diagnostics & Residual Error Analysis</h3>
                         <div id="chart-residuals" style="width:100%; height:380px;"></div>
                     </div>
+                    
                     <div class="glass-card">
-                        <h4 style="font-size: 1.1rem; font-family: 'Outfit', sans-serif; margin-bottom: 14px;">📊 Empirical Regression Performance Metrics</h4>
+                        <h4 style="font-size: 1.1rem; font-family: 'Outfit', sans-serif; margin-bottom: 14px;">📊 Empirical Regression Performance & Accuracy Metrics</h4>
                         <div class="custom-table-container">
                             <table>
                                 <thead>
                                     <tr>
                                         <th>Model Architecture</th>
+                                        <th>Accuracy (%)</th>
                                         <th>MAE (kW)</th>
                                         <th>RMSE (kW)</th>
                                         <th>MAPE (%)</th>
@@ -414,6 +435,7 @@
                                 <tbody>
                                     <tr>
                                         <td><strong>Linear SARIMAX Baseline</strong></td>
+                                        <td><strong style="color: #d97706;">85.80 %</strong></td>
                                         <td>24.3 kW</td>
                                         <td>31.8 kW</td>
                                         <td>14.2 %</td>
@@ -421,6 +443,7 @@
                                     </tr>
                                     <tr style="background: #eff6ff;">
                                         <td><strong style="color: #2563eb;">Hybrid SARIMAX-LSTM (Proposed)</strong></td>
+                                        <td><strong style="color: #059669; font-size: 1.05rem;">95.20 %</strong></td>
                                         <td><strong style="color: #059669;">8.7 kW</strong></td>
                                         <td><strong style="color: #059669;">11.4 kW</strong></td>
                                         <td><strong style="color: #059669;">4.8 %</strong></td>

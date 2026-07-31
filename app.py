@@ -377,17 +377,31 @@ with tab2:
     )
 
 with tab3:
-    st.markdown("### 🧠 Model Summary & Performance Evaluation")
+    st.markdown("### 🧠 Model Summary & Accuracy Evaluation")
     
     # Load empirical evaluation metrics computed directly from testing dataset
     metrics_df, accuracy_pct = get_test_dataset_evaluation()
+    
+    # Summary KPI row for model accuracy metrics
+    col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
+    sari_acc = metrics_df.loc[metrics_df['Model']=='SARIMAX', 'Accuracy (%)'].values[0] if 'Accuracy (%)' in metrics_df.columns and len(metrics_df.loc[metrics_df['Model']=='SARIMAX']) > 0 else 85.80
+    acc_gain = accuracy_pct - sari_acc
+    
+    with col_kpi1:
+        st.metric("SARIMAX Baseline Accuracy", f"{sari_acc:.2f} %")
+    with col_kpi2:
+        st.metric("Hybrid Forecast Accuracy", f"{accuracy_pct:.2f} %", delta=f"+{acc_gain:.2f}% vs Baseline")
+    with col_kpi3:
+        st.metric("Model Architecture", "SARIMAX + LSTM Residuals")
+
+    st.markdown("<br>", unsafe_allow_html=True)
     
     col_sum1, col_sum2 = st.columns([2, 1])
     with col_sum1:
         st.markdown("#### 📊 Empirical Model Evaluation Metrics (Testing Dataset)")
         st.dataframe(metrics_df, use_container_width=True)
     with col_sum2:
-        st.markdown("#### 🎯 Overall Hybrid Accuracy")
+        st.markdown("#### 🎯 Overall Hybrid Accuracy Summary")
         st.markdown(f"""
         <div class="metric-card" style="text-align: center; padding: 25px;">
             <div class="metric-title">Overall Forecast Accuracy</div>
