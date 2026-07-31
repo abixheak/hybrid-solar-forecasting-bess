@@ -6,11 +6,11 @@ import numpy as np
 from config import COLORS
 
 def set_dark_layout(fig, title: str = "", height: int = 420):
-    """Apply unified SaaS dark theme layout parameters to Plotly figure."""
+    """Apply unified enterprise white theme layout parameters to Plotly figure."""
     fig.update_layout(
         title=dict(text=title, font=dict(size=16, color=COLORS["text_main"], family="Inter, sans-serif")),
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(15, 23, 42, 0.6)",
+        plot_bgcolor="rgba(248, 250, 252, 0.8)",
         height=height,
         margin=dict(l=40, r=40, t=50, b=40),
         font=dict(color=COLORS["text_muted"], family="Inter, sans-serif"),
@@ -24,18 +24,19 @@ def set_dark_layout(fig, title: str = "", height: int = 420):
         ),
         xaxis=dict(
             showgrid=True,
-            gridcolor="rgba(255, 255, 255, 0.07)",
+            gridcolor="#e2e8f0",
             tickfont=dict(color=COLORS["text_muted"])
         ),
         yaxis=dict(
             showgrid=True,
-            gridcolor="rgba(255, 255, 255, 0.07)",
+            gridcolor="#e2e8f0",
             tickfont=dict(color=COLORS["text_muted"])
         ),
         hoverlabel=dict(
-            bgcolor="#1e293b",
-            font_color="#ffffff",
-            font_family="Inter, sans-serif"
+            bgcolor="#ffffff",
+            font_color="#0f172a",
+            font_family="Inter, sans-serif",
+            bordercolor="#cbd5e1"
         )
     )
     return fig
@@ -73,8 +74,8 @@ def plot_solar_forecast(df: pd.DataFrame) -> go.Figure:
             y=df["solar_power_kw"],
             mode="markers+lines",
             name="Actual Solar Generation",
-            marker=dict(size=4, color="#ffffff"),
-            line=dict(color="rgba(255,255,255,0.4)", width=1)
+            marker=dict(size=4, color="#0f172a"),
+            line=dict(color="rgba(15, 23, 42, 0.4)", width=1)
         ))
 
     set_dark_layout(fig, title="☀️ Solar Power Generation Forecast (kW)", height=440)
@@ -98,7 +99,7 @@ def plot_bess_microgrid_dispatch(df: pd.DataFrame) -> go.Figure:
     fig.add_trace(go.Scatter(
         x=x_axis, y=df[gen_col],
         name="Hybrid Solar Gen", line=dict(color=COLORS["accent_cyan"], width=2.5),
-        fill="tozeroy", fillcolor="rgba(0, 242, 254, 0.1)"
+        fill="tozeroy", fillcolor="rgba(2, 132, 199, 0.12)"
     ), row=1, col=1)
     
     if "demand_kw" in df.columns:
@@ -112,7 +113,7 @@ def plot_bess_microgrid_dispatch(df: pd.DataFrame) -> go.Figure:
         fig.add_trace(go.Scatter(
             x=x_axis, y=df["bess_soc_pct"],
             name="BESS SOC (%)", line=dict(color=COLORS["accent_green"], width=2.5),
-            fill="tozeroy", fillcolor="rgba(6, 214, 160, 0.15)"
+            fill="tozeroy", fillcolor="rgba(5, 150, 105, 0.15)"
         ), row=2, col=1)
 
     set_dark_layout(fig, title="🔋 BESS Dispatch & Microgrid Balance", height=480)

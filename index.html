@@ -17,11 +17,11 @@
             padding: 0;
         }
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background-color: #090d16;
-            color: #f8fafc;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
             min-height: 100vh;
-            background: radial-gradient(circle at 50% 0%, #172554 0%, #0f172a 45%, #090d16 100%);
+            background: radial-gradient(circle at 50% 0%, #ffffff 0%, #f1f5f9 60%, #e2e8f0 100%);
             background-attachment: fixed;
         }
         .container {
@@ -40,13 +40,16 @@
             }
         }
         .sidebar-card {
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
             border-radius: 20px;
             padding: 24px;
             height: fit-content;
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+            transition: all 0.3s ease;
+        }
+        .sidebar-card:hover {
+            box-shadow: 0 10px 30px -4px rgba(37, 99, 235, 0.1);
         }
         .form-group {
             margin-bottom: 20px;
@@ -55,7 +58,7 @@
             display: block;
             font-size: 0.82rem;
             font-weight: 700;
-            color: #94a3b8;
+            color: #64748b;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 8px;
@@ -63,21 +66,22 @@
         .form-control, .form-select {
             width: 100%;
             padding: 11px 14px;
-            background: rgba(15, 23, 42, 0.9);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
             border-radius: 12px;
-            color: #ffffff;
+            color: #0f172a;
             font-size: 0.95rem;
             outline: none;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
         }
         .form-control:focus, .form-select:focus {
-            border-color: #38bdf8;
-            box-shadow: 0 0 14px rgba(56, 189, 248, 0.3);
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
         }
         .range-value {
             float: right;
-            color: #38bdf8;
+            color: #2563eb;
             font-weight: 700;
             font-family: 'Outfit', sans-serif;
         }
@@ -90,10 +94,10 @@
         .tab-buttons {
             display: flex;
             gap: 10px;
-            background: rgba(15, 23, 42, 0.9);
+            background: #f1f5f9;
             padding: 6px;
             border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid #e2e8f0;
             margin-bottom: 24px;
             overflow-x: auto;
         }
@@ -101,30 +105,31 @@
             padding: 10px 22px;
             background: transparent;
             border: none;
-            color: #94a3b8;
+            color: #64748b;
             font-weight: 600;
             font-size: 0.92rem;
             border-radius: 10px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.25s ease;
             white-space: nowrap;
         }
         .tab-btn.active {
-            background: linear-gradient(135deg, #38bdf8 0%, #6366f1 100%);
+            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
             color: #ffffff;
             font-weight: 700;
-            box-shadow: 0 4px 16px rgba(56, 189, 248, 0.35);
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
         }
         .tab-content {
             display: none;
         }
         .tab-content.active {
             display: block;
+            animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         .custom-table-container {
             overflow-x: auto;
             border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid #e2e8f0;
             margin-top: 16px;
         }
         table {
@@ -135,11 +140,11 @@
         }
         th, td {
             padding: 14px 18px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom: 1px solid #e2e8f0;
         }
         th {
-            background: rgba(15, 23, 42, 0.95);
-            color: #38bdf8;
+            background: #f8fafc;
+            color: #2563eb;
             font-weight: 700;
             font-family: 'Outfit', sans-serif;
             text-transform: uppercase;
@@ -147,15 +152,15 @@
             letter-spacing: 0.06em;
         }
         tr:nth-child(even) {
-            background: rgba(255, 255, 255, 0.015);
+            background: #f8fafc;
         }
         tr:hover {
-            background: rgba(56, 189, 248, 0.06);
+            background: #eff6ff;
         }
         #login-screen {
             position: fixed;
             inset: 0;
-            background: radial-gradient(circle at 50% 0%, #172554 0%, #0f172a 50%, #090d16 100%);
+            background: radial-gradient(circle at 50% 0%, #ffffff 0%, #f1f5f9 60%, #e2e8f0 100%);
             z-index: 9999;
             display: flex;
             align-items: center;
@@ -164,16 +169,18 @@
         }
         .btn-outline {
             padding: 8px 16px;
-            background: rgba(244, 63, 94, 0.12);
-            border: 1px solid rgba(244, 63, 94, 0.3);
-            color: #f43f5e;
+            background: #fff1f2;
+            border: 1px solid #fecdd3;
+            color: #e11d48;
             border-radius: 10px;
             cursor: pointer;
             font-weight: 600;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .btn-outline:hover {
-            background: rgba(244, 63, 94, 0.25);
+            background: #ffe4e6;
+            border-color: #fda4af;
+            transform: translateY(-1px);
         }
     </style>
 </head>
@@ -223,7 +230,7 @@
         <div class="dashboard-layout">
             <!-- SIDEBAR CONTROLS -->
             <div class="sidebar-card">
-                <h3 style="font-size: 1.05rem; font-family: 'Outfit', sans-serif; color: #ffffff; margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px;">⚙️ System Controls</h3>
+                <h3 style="font-size: 1.05rem; font-family: 'Outfit', sans-serif; color: #0f172a; margin-bottom: 18px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">⚙️ System Controls</h3>
                 
                 <div class="form-group">
                     <label for="city-select">📍 Select Location</label>
@@ -244,8 +251,8 @@
                     <input type="range" id="horizon-slider" min="1" max="7" value="3" class="form-control" oninput="document.getElementById('horizon-val').innerText = this.value + ' Days'; runSimulation();">
                 </div>
 
-                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 24px 0;">
-                <h3 style="font-size: 1.05rem; font-family: 'Outfit', sans-serif; color: #ffffff; margin-bottom: 18px;">🔋 BESS Configuration</h3>
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+                <h3 style="font-size: 1.05rem; font-family: 'Outfit', sans-serif; color: #0f172a; margin-bottom: 18px;">🔋 BESS Configuration</h3>
 
                 <div class="form-group">
                     <label for="bess-cap">Battery Capacity (kWh)</label>
@@ -267,8 +274,8 @@
                     <input type="number" id="max-discharge" class="form-control" value="250" step="50" min="50" max="2000" onchange="runSimulation()">
                 </div>
 
-                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 24px 0;">
-                <h3 style="font-size: 1.05rem; font-family: 'Outfit', sans-serif; color: #ffffff; margin-bottom: 18px;">📈 Demand Adjuster</h3>
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+                <h3 style="font-size: 1.05rem; font-family: 'Outfit', sans-serif; color: #0f172a; margin-bottom: 18px;">📈 Demand Adjuster</h3>
 
                 <div class="form-group">
                     <label for="load-modifier">Peak Load Modifier <span id="modifier-val" class="range-value">1.0x</span></label>
@@ -284,12 +291,12 @@
                 <div class="kpi-grid">
                     <div class="metric-card">
                         <div class="metric-title">Current Generation</div>
-                        <div id="kpi-current" class="metric-value">0.0 <span style="font-size: 1rem; color: #94a3b8;">kW</span></div>
+                        <div id="kpi-current" class="metric-value">0.0 <span style="font-size: 1rem; color: #64748b;">kW</span></div>
                         <div class="metric-delta delta-positive">Live Solar Output</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-title">24h Peak Power</div>
-                        <div id="kpi-peak" class="metric-value">0.0 <span style="font-size: 1rem; color: #94a3b8;">kW</span></div>
+                        <div id="kpi-peak" class="metric-value">0.0 <span style="font-size: 1rem; color: #64748b;">kW</span></div>
                         <div class="metric-delta delta-neutral">Max Solar Capacity</div>
                     </div>
                     <div class="metric-card">
@@ -299,12 +306,12 @@
                     </div>
                     <div class="metric-card">
                         <div class="metric-title">Grid Import</div>
-                        <div id="kpi-import" class="metric-value">0 <span style="font-size: 1rem; color: #94a3b8;">kWh</span></div>
+                        <div id="kpi-import" class="metric-value">0 <span style="font-size: 1rem; color: #64748b;">kWh</span></div>
                         <div class="metric-delta delta-negative">Deficit Grid Import</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-title">Grid Export</div>
-                        <div id="kpi-export" class="metric-value">0 <span style="font-size: 1rem; color: #94a3b8;">kWh</span></div>
+                        <div id="kpi-export" class="metric-value">0 <span style="font-size: 1rem; color: #64748b;">kWh</span></div>
                         <div class="metric-delta delta-positive">Surplus Solar Export</div>
                     </div>
                 </div>
@@ -327,9 +334,9 @@
 
                     <div class="glass-card">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
-                            <h4 style="font-size: 1.1rem; font-family: 'Outfit', sans-serif; margin: 0; color: #ffffff;">📋 Predicted Hourly Generation Telemetry Matrix</h4>
+                            <h4 style="font-size: 1.1rem; font-family: 'Outfit', sans-serif; margin: 0; color: #0f172a;">📋 Predicted Hourly Generation Telemetry Matrix</h4>
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <label for="table-page-size" style="font-size: 0.85rem; color: #94a3b8; font-weight: 600;">Rows per page:</label>
+                                <label for="table-page-size" style="font-size: 0.85rem; color: #64748b; font-weight: 600;">Rows per page:</label>
                                 <select id="table-page-size" class="form-select" style="width: auto; padding: 6px 12px; font-size: 0.85rem;" onchange="changePageSize(this.value)">
                                     <option value="24" selected>24 Hours</option>
                                     <option value="48">48 Hours</option>
@@ -354,11 +361,11 @@
                         </div>
 
                         <!-- PAGINATION FOOTER CONTROLS -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; flex-wrap: wrap; gap: 12px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 14px;">
-                            <div id="table-info" style="font-size: 0.85rem; color: #94a3b8;">Showing 1-24 of 72 entries</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; flex-wrap: wrap; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+                            <div id="table-info" style="font-size: 0.85rem; color: #64748b;">Showing 1-24 of 72 entries</div>
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 <button id="btn-prev-page" class="btn-outline" style="padding: 6px 14px; font-size: 0.85rem;" onclick="prevPage()">◀️ Previous</button>
-                                <span id="page-num-display" style="font-size: 0.85rem; color: #38bdf8; font-weight: 700; padding: 0 8px;">Page 1 of 3</span>
+                                <span id="page-num-display" style="font-size: 0.85rem; color: #2563eb; font-weight: 700; padding: 0 8px;">Page 1 of 3</span>
                                 <button id="btn-next-page" class="btn-outline" style="padding: 6px 14px; font-size: 0.85rem;" onclick="nextPage()">Next ▶️</button>
                             </div>
                         </div>
@@ -412,12 +419,12 @@
                                         <td>14.2 %</td>
                                         <td>0.892</td>
                                     </tr>
-                                    <tr style="background: rgba(56, 189, 248, 0.08);">
-                                        <td><strong style="color: #38bdf8;">Hybrid SARIMAX-LSTM (Proposed)</strong></td>
-                                        <td><strong style="color: #34d399;">8.7 kW</strong></td>
-                                        <td><strong style="color: #34d399;">11.4 kW</strong></td>
-                                        <td><strong style="color: #34d399;">4.8 %</strong></td>
-                                        <td><strong style="color: #34d399;">0.984</strong></td>
+                                    <tr style="background: #eff6ff;">
+                                        <td><strong style="color: #2563eb;">Hybrid SARIMAX-LSTM (Proposed)</strong></td>
+                                        <td><strong style="color: #059669;">8.7 kW</strong></td>
+                                        <td><strong style="color: #059669;">11.4 kW</strong></td>
+                                        <td><strong style="color: #059669;">4.8 %</strong></td>
+                                        <td><strong style="color: #059669;">0.984</strong></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -429,13 +436,13 @@
                 <div id="tab5" class="tab-content">
                     <div class="glass-card" style="text-align: center; padding: 44px 24px;">
                         <h3 style="font-size: 1.5rem; font-family: 'Outfit', sans-serif; margin-bottom: 12px;">📄 Export Simulation Results</h3>
-                        <p style="color: #94a3b8; margin-bottom: 28px;">Download the complete hourly telemetry matrix including solar generation, demand, BESS state-of-charge, and grid exchanges.</p>
+                        <p style="color: #64748b; margin-bottom: 28px;">Download the complete hourly telemetry matrix including solar generation, demand, BESS state-of-charge, and grid exchanges.</p>
                         <button class="btn-primary" style="max-width: 320px;" onclick="downloadCSV()">📥 Download Full Simulation CSV</button>
                     </div>
 
                     <div class="glass-card">
-                        <h4 style="font-size: 1.15rem; font-family: 'Outfit', sans-serif; color: #38bdf8; margin-bottom: 14px;">🛠️ Technical Architecture Specification</h4>
-                        <ul style="color: #94a3b8; line-height: 1.85; padding-left: 20px;">
+                        <h4 style="font-size: 1.15rem; font-family: 'Outfit', sans-serif; color: #2563eb; margin-bottom: 14px;">🛠️ Technical Architecture Specification</h4>
+                        <ul style="color: #475569; line-height: 1.85; padding-left: 20px;">
                             <li><strong>SARIMAX Model</strong>: Captures non-stationary linear temporal dynamics and exogenous weather variable influences (Irradiance, Temp, Humidity, Wind).</li>
                             <li><strong>LSTM Neural Network</strong>: Trained strictly on SARIMAX residuals (e_t = y_t - y_SARIMAX) to model nonlinear high-frequency atmospheric corrections.</li>
                             <li><strong>Hybrid Combination</strong>: Final Prediction y_final(t) = y_SARIMAX(t) + e_LSTM(t).</li>
@@ -658,35 +665,35 @@
 
             // Chart 1: Solar Forecast
             Plotly.newPlot('chart-solar-forecast', [
-                { x: times, y: data.map(d => d.sarimax), name: 'SARIMAX Baseline', line: { color: '#f59e0b', width: 2, dash: 'dot' } },
-                { x: times, y: data.map(d => d.lstm), name: 'LSTM Residual Correction', line: { color: '#f43f5e', width: 1.5 } },
-                { x: times, y: data.map(d => d.hybrid), name: 'Hybrid Final Forecast', line: { color: '#38bdf8', width: 3 } }
+                { x: times, y: data.map(d => d.sarimax), name: 'SARIMAX Baseline', line: { color: '#d97706', width: 2, dash: 'dot' } },
+                { x: times, y: data.map(d => d.lstm), name: 'LSTM Residual Correction', line: { color: '#e11d48', width: 1.5 } },
+                { x: times, y: data.map(d => d.hybrid), name: 'Hybrid Final Forecast', line: { color: '#2563eb', width: 3 } }
             ], getLayout('Power Output (kW)'));
 
             // Chart 2: BESS SOC
             Plotly.newPlot('chart-bess-soc', [
-                { x: times, y: data.map(d => d.socPct), name: 'Battery SOC (%)', fill: 'tozeroy', line: { color: '#10b981', width: 2.5 } }
+                { x: times, y: data.map(d => d.socPct), name: 'Battery SOC (%)', fill: 'tozeroy', fillcolor: 'rgba(5, 150, 105, 0.12)', line: { color: '#059669', width: 2.5 } }
             ], getLayout('State of Charge (%)'));
 
             // Chart 3: Grid Energy Flows
             Plotly.newPlot('chart-grid-flows', [
-                { x: times, y: data.map(d => d.gridImport), name: 'Grid Import (Deficit)', type: 'bar', marker: { color: '#f43f5e' } },
-                { x: times, y: data.map(d => d.gridExport), name: 'Grid Export (Surplus)', type: 'bar', marker: { color: '#10b981' } }
+                { x: times, y: data.map(d => d.gridImport), name: 'Grid Import (Deficit)', type: 'bar', marker: { color: '#e11d48' } },
+                { x: times, y: data.map(d => d.gridExport), name: 'Grid Export (Surplus)', type: 'bar', marker: { color: '#059669' } }
             ], getLayout('Energy Flow (kW)'));
 
             // Chart 4: Weather
             Plotly.newPlot('chart-weather', [
-                { x: times, y: data.map(d => d.irradiance), name: 'Irradiance (W/m²)', line: { color: '#f59e0b', width: 2 } },
-                { x: times, y: data.map(d => d.temp), name: 'Temperature (°C)', yaxis: 'y2', line: { color: '#6366f1', width: 2 } }
+                { x: times, y: data.map(d => d.irradiance), name: 'Irradiance (W/m²)', line: { color: '#d97706', width: 2 } },
+                { x: times, y: data.map(d => d.temp), name: 'Temperature (°C)', yaxis: 'y2', line: { color: '#4f46e5', width: 2 } }
             ], {
                 ...getLayout('Irradiance (W/m²)'),
-                yaxis2: { title: 'Temperature (°C)', overlaying: 'y', side: 'right', gridcolor: 'rgba(255,255,255,0.05)', titlefont: { color: '#6366f1' } }
+                yaxis2: { title: 'Temperature (°C)', overlaying: 'y', side: 'right', gridcolor: '#e2e8f0', titlefont: { color: '#4f46e5' } }
             });
 
             // Chart 5: Residuals Analysis
             const residuals = data.map(d => parseFloat(d.lstm));
             Plotly.newPlot('chart-residuals', [
-                { x: times, y: residuals, type: 'scatter', mode: 'lines+markers', name: 'Residual Errors e_t', line: { color: '#38bdf8' } }
+                { x: times, y: residuals, type: 'scatter', mode: 'lines+markers', name: 'Residual Errors e_t', line: { color: '#0284c7' } }
             ], getLayout('Residual Error (kW)'));
 
             renderForecastTable();
@@ -738,7 +745,7 @@
                     <td>${row.time}</td>
                     <td>${row.sarimax} kW</td>
                     <td>${row.lstm} kW</td>
-                    <td style="color: #38bdf8; font-weight: 700;">${row.hybrid} kW</td>
+                    <td style="color: #2563eb; font-weight: 700;">${row.hybrid} kW</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -752,12 +759,12 @@
         function getLayout(yTitle) {
             return {
                 paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                font: { color: '#cbd5e1', family: 'Inter' },
+                plot_bgcolor: 'rgba(248, 250, 252, 0.8)',
+                font: { color: '#0f172a', family: 'Inter' },
                 margin: { t: 30, r: 30, l: 50, b: 40 },
-                xaxis: { gridcolor: 'rgba(255,255,255,0.05)' },
-                yaxis: { title: yTitle, gridcolor: 'rgba(255,255,255,0.05)' },
-                legend: { orientation: 'h', y: 1.15 }
+                xaxis: { gridcolor: '#e2e8f0', tickfont: { color: '#64748b' } },
+                yaxis: { title: yTitle, gridcolor: '#e2e8f0', tickfont: { color: '#64748b' } },
+                legend: { orientation: 'h', y: 1.15, font: { color: '#0f172a' } }
             };
         }
 

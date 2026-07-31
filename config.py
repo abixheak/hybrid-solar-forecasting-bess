@@ -73,16 +73,16 @@ BESS_DEFAULTS = {
     "max_soc_pct": 90.0,          # 90% maximum SOC
 }
 
-# UI Theme Color Palette
+# UI Theme Color Palette (Executive White Theme)
 COLORS = {
-    "background": "#0b0f19",
-    "card_bg": "rgba(22, 31, 49, 0.75)",
-    "accent_cyan": "#00f2fe",
-    "accent_blue": "#4facfe",
-    "accent_amber": "#ffb703",
-    "accent_green": "#06d6a0",
-    "accent_red": "#ef476f",
-    "text_main": "#f8fafc",
-    "text_muted": "#94a3b8",
-    "border_glow": "rgba(0, 242, 254, 0.25)"
+    "background": "#f8fafc",
+    "card_bg": "#ffffff",
+    "accent_cyan": "#0284c7",
+    "accent_blue": "#2563eb",
+    "accent_amber": "#d97706",
+    "accent_green": "#059669",
+    "accent_red": "#e11d48",
+    "text_main": "#0f172a",
+    "text_muted": "#64748b",
+    "border_glow": "rgba(37, 99, 235, 0.15)"
 }
