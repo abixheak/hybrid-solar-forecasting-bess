@@ -253,11 +253,42 @@ with tab1:
     st.markdown("### ☀️ Hybrid SARIMAX-LSTM Generation Forecast")
     st.plotly_chart(plot_solar_forecast(df_bess), use_container_width=True)
     
-    st.markdown("#### 📋 Hourly Generation Forecast Summary")
+    st.markdown("---")
+    st.markdown("#### 📋 Predicted Hourly Generation Telemetry Matrix")
+    
+    total_rows = len(df_bess)
+    col_p1, col_p2 = st.columns([2, 2])
+    with col_p1:
+        page_size_option = st.selectbox(
+            "Rows Per Page",
+            options=["24 Hours", "48 Hours", "72 Hours", "All Predicted Hours"],
+            index=0,
+            help="Select how many predicted hours to display per page."
+        )
+    
+    if page_size_option == "24 Hours":
+        p_size = 24
+    elif page_size_option == "48 Hours":
+        p_size = 48
+    elif page_size_option == "72 Hours":
+        p_size = 72
+    else:
+        p_size = total_rows
+        
+    num_pages = max(1, (total_rows + p_size - 1) // p_size)
+    
+    with col_p2:
+        selected_page = st.number_input("Select Page Number", min_value=1, max_value=num_pages, value=1, step=1)
+        
+    start_row = (selected_page - 1) * p_size
+    end_row = min(start_row + p_size, total_rows)
+    
+    st.caption(f"Showing predicted hours **{start_row + 1} to {end_row}** of **{total_rows}** total forecast hours (Page **{selected_page}** of **{num_pages}**)")
+    
     display_cols = ["timestamp", "sarimax_prediction", "lstm_residual_correction", "hybrid_final_forecast"]
     avail_cols = [c for c in display_cols if c in df_bess.columns]
     st.dataframe(
-        df_bess[avail_cols].head(24).rename(columns={
+        df_bess[avail_cols].iloc[start_row:end_row].rename(columns={
             "timestamp": "Timestamp",
             "sarimax_prediction": "SARIMAX Baseline (kW)",
             "lstm_residual_correction": "LSTM Residual Correction (kW)",

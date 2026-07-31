@@ -348,7 +348,19 @@
                     </div>
 
                     <div class="glass-card">
-                        <h4 style="font-size: 1.05rem; margin-bottom: 12px;">📋 Hourly Generation Summary (First 24 Hours)</h4>
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+                            <h4 style="font-size: 1.05rem; margin: 0; color: #ffffff;">📋 Predicted Hourly Generation Telemetry Matrix</h4>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <label for="table-page-size" style="font-size: 0.85rem; color: #94a3b8; font-weight: 600;">Rows per page:</label>
+                                <select id="table-page-size" class="form-select" style="width: auto; padding: 4px 10px; font-size: 0.85rem;" onchange="changePageSize(this.value)">
+                                    <option value="24" selected>24 Hours</option>
+                                    <option value="48">48 Hours</option>
+                                    <option value="72">72 Hours</option>
+                                    <option value="all">All Hours</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div class="custom-table-container">
                             <table id="table-forecast">
                                 <thead>
@@ -361,6 +373,16 @@
                                 </thead>
                                 <tbody></tbody>
                             </table>
+                        </div>
+
+                        <!-- PAGINATION FOOTER CONTROLS -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; flex-wrap: wrap; gap: 12px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px;">
+                            <div id="table-info" style="font-size: 0.85rem; color: #94a3b8;">Showing 1-24 of 72 entries</div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <button id="btn-prev-page" class="btn-outline" style="padding: 6px 14px; font-size: 0.85rem;" onclick="prevPage()">◀️ Previous</button>
+                                <span id="page-num-display" style="font-size: 0.85rem; color: #00f2fe; font-weight: 700; padding: 0 8px;">Page 1 of 3</span>
+                                <button id="btn-next-page" class="btn-outline" style="padding: 6px 14px; font-size: 0.85rem;" onclick="nextPage()">Next ▶️</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -692,10 +714,54 @@
                 { x: times, y: residuals, type: 'scatter', mode: 'lines+markers', name: 'Residual Errors e_t', line: { color: '#00f2fe' } }
             ], getLayout('Residual Error (kW)', ['#00f2fe']));
 
-            // Populate Table
+            // Render Paginated Table
+            renderForecastTable();
+        }
+
+        let currentPage = 1;
+        let pageSize = 24;
+
+        function changePageSize(val) {
+            pageSize = val === 'all' ? currentSimulationData.length : parseInt(val);
+            currentPage = 1;
+            renderForecastTable();
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderForecastTable();
+            }
+        }
+
+        function nextPage() {
+            const total = currentSimulationData.length;
+            const effPageSize = pageSize === 'all' ? total : pageSize;
+            const totalPages = Math.ceil(total / effPageSize);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderForecastTable();
+            }
+        }
+
+        function renderForecastTable() {
             const tbody = document.querySelector('#table-forecast tbody');
             tbody.innerHTML = '';
-            data.slice(0, 24).forEach(row => {
+
+            if (!currentSimulationData || currentSimulationData.length === 0) return;
+
+            const total = currentSimulationData.length;
+            const effPageSize = pageSize === 'all' ? total : pageSize;
+            const totalPages = Math.max(1, Math.ceil(total / effPageSize));
+
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const startIdx = (currentPage - 1) * effPageSize;
+            const endIdx = Math.min(startIdx + effPageSize, total);
+
+            const pageData = currentSimulationData.slice(startIdx, endIdx);
+
+            pageData.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${row.time}</td>
@@ -705,6 +771,11 @@
                 `;
                 tbody.appendChild(tr);
             });
+
+            document.getElementById('table-info').innerText = `Showing ${startIdx + 1}-${endIdx} of ${total} predicted hours`;
+            document.getElementById('page-num-display').innerText = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('btn-prev-page').disabled = (currentPage === 1);
+            document.getElementById('btn-next-page').disabled = (currentPage === totalPages);
         }
 
         function getLayout(yTitle) {
