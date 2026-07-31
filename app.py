@@ -27,11 +27,14 @@ from src.database import init_db, fetch_weather_records, get_fleet_stats
 from src.weather_api import sync_city_weather_to_sqlite
 from src.predict import run_hybrid_forecast
 from src.battery import generate_demand_profile, simulate_bess_operations
-from src.evaluation import generate_evaluation_report, evaluate_predictions
+from src.evaluation import generate_evaluation_report, evaluate_predictions, get_test_dataset_evaluation
 from src.visualization import (
     plot_solar_forecast,
-    plot_bess_microgrid_dispatch,
-    plot_grid_energy_flows,
+    plot_solar_vs_demand,
+    plot_battery_soc,
+    plot_battery_charge_discharge,
+    plot_grid_import_export,
+    plot_hourly_energy_balance,
     plot_residual_analysis,
     plot_weather_telemetry,
     plot_model_performance_comparison
@@ -107,8 +110,8 @@ forecast_horizon_days = st.sidebar.slider(
     "📅 Forecast Horizon (Days)",
     min_value=1,
     max_value=7,
-    value=3,
-    help="Select forecast duration in days."
+    value=2,
+    help="Select forecast duration in days (24 to 48+ hours)."
 )
 
 st.sidebar.markdown("---")
@@ -116,8 +119,12 @@ st.sidebar.markdown("### 🔋 BESS Configuration")
 
 capacity_kwh = st.sidebar.number_input("Battery Capacity (kWh)", min_value=100.0, max_value=10000.0, value=1000.0, step=100.0)
 initial_soc_pct = st.sidebar.slider("Initial SOC (%)", min_value=10.0, max_value=90.0, value=50.0)
+min_soc_pct = st.sidebar.number_input("Minimum SOC (%)", min_value=5.0, max_value=30.0, value=10.0, step=5.0)
+max_soc_pct = st.sidebar.number_input("Maximum SOC (%)", min_value=70.0, max_value=100.0, value=90.0, step=5.0)
 max_charge_kw = st.sidebar.number_input("Max Charge Rate (kW)", min_value=50.0, max_value=2000.0, value=250.0)
 max_discharge_kw = st.sidebar.number_input("Max Discharge Rate (kW)", min_value=50.0, max_value=2000.0, value=250.0)
+charge_eff = st.sidebar.slider("Charge Efficiency", min_value=0.80, max_value=1.00, value=0.95, step=0.01)
+discharge_eff = st.sidebar.slider("Discharge Efficiency", min_value=0.80, max_value=1.00, value=0.95, step=0.01)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📈 Demand Profile Adjuster")
@@ -138,8 +145,8 @@ st.markdown(f"""
 <div class="hero-banner">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <h1>Hybrid Solar Power Forecasting with BESS</h1>
-            <p>TRUE SARIMAX-LSTM Residual Correction Engine & Microgrid Energy Storage Simulation</p>
+            <h1>Hybrid Solar Power Forecasting & Energy Management System</h1>
+            <p>SARIMAX-LSTM Residual Engine & Realistic BESS Microgrid Simulation</p>
         </div>
         <div class="live-badge">
             <div class="pulse-dot"></div>
@@ -181,17 +188,22 @@ with st.spinner("Fetching weather from Open-Meteo & executing hybrid SARIMAX-LST
         initial_soc_pct=initial_soc_pct,
         max_charge_kw=max_charge_kw,
         max_discharge_kw=max_discharge_kw,
+        charge_eff=charge_eff,
+        discharge_eff=discharge_eff,
+        min_soc_pct=min_soc_pct,
+        max_soc_pct=max_soc_pct,
         demand_kw_series=demand_series
     )
 
 # --- TOP KPI METRIC CARDS ---
 col1, col2, col3, col4, col5 = st.columns(5)
 
-current_gen = df_bess["hybrid_final_forecast"].iloc[0] if len(df_bess) > 0 else 0.0
-peak_gen = df_bess["hybrid_final_forecast"].max()
-latest_soc = df_bess["bess_soc_pct"].iloc[-1] if len(df_bess) > 0 else 50.0
-total_grid_import = df_bess["grid_import_kw"].sum()
-total_grid_export = df_bess["grid_export_kw"].sum()
+current_gen = float(df_bess["hybrid_final_forecast"].iloc[0]) if len(df_bess) > 0 else 0.0
+current_demand = float(df_bess["demand_kw"].iloc[0]) if len(df_bess) > 0 else 0.0
+latest_soc = float(df_bess["bess_soc_pct"].iloc[-1]) if len(df_bess) > 0 else 50.0
+current_mode = str(df_bess["bess_state"].iloc[0]) if len(df_bess) > 0 else "Balanced"
+total_grid_import = float(df_bess["grid_import_kw"].sum())
+total_grid_export = float(df_bess["grid_export_kw"].sum())
 
 with col1:
     st.markdown(f"""
@@ -205,9 +217,9 @@ with col1:
 with col2:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="metric-title">24h Peak Power</div>
-        <div class="metric-value">{peak_gen:.1f} <span style="font-size: 1rem;">kW</span></div>
-        <div class="metric-delta delta-neutral">Max Solar Capacity</div>
+        <div class="metric-title">Current Demand</div>
+        <div class="metric-value">{current_demand:.1f} <span style="font-size: 1rem;">kW</span></div>
+        <div class="metric-delta delta-neutral">Simulated Load</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -223,18 +235,18 @@ with col3:
 with col4:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="metric-title">Grid Import</div>
-        <div class="metric-value">{total_grid_import:.0f} <span style="font-size: 1rem;">kWh</span></div>
-        <div class="metric-delta delta-negative">Deficit Grid Import</div>
+        <div class="metric-title">Operating Mode</div>
+        <div class="metric-value" style="font-size: 1.2rem; margin-top: 5px;">{current_mode}</div>
+        <div class="metric-delta delta-positive">Live BESS Dispatch</div>
     </div>
     """, unsafe_allow_html=True)
 
 with col5:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="metric-title">Grid Export</div>
-        <div class="metric-value">{total_grid_export:.0f} <span style="font-size: 1rem;">kWh</span></div>
-        <div class="metric-delta delta-positive">Surplus Solar Export</div>
+        <div class="metric-title">Grid Import / Export</div>
+        <div class="metric-value" style="font-size: 1.2rem;">{total_grid_import:.0f} / {total_grid_export:.0f} <span style="font-size: 0.8rem;">kWh</span></div>
+        <div class="metric-delta delta-neutral">Total Grid Transfer</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -243,18 +255,18 @@ st.markdown("<br>", unsafe_allow_html=True)
 # --- TABBED DASHBOARD ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "☀️ Solar Forecast",
-    "🔋 BESS Dispatch",
-    "📡 Live Weather & SQLite Fleet",
-    "🧠 Model Diagnostics",
+    "⚡ Energy Management & BESS",
+    "🧠 Model Summary & Accuracy",
+    "📡 Live Weather Telemetry",
     "📄 Data Export & Report"
 ])
 
 with tab1:
-    st.markdown("### ☀️ Hybrid SARIMAX-LSTM Generation Forecast")
+    st.markdown("### ☀️ Hybrid SARIMAX-LSTM Solar Generation Forecast")
     st.plotly_chart(plot_solar_forecast(df_bess), use_container_width=True)
     
     st.markdown("---")
-    st.markdown("#### 📋 Predicted Hourly Generation Telemetry Matrix")
+    st.markdown("#### 📋 Hourly Generation Forecast Matrix")
     
     total_rows = len(df_bess)
     col_p1, col_p2 = st.columns([2, 2])
@@ -262,8 +274,7 @@ with tab1:
         page_size_option = st.selectbox(
             "Rows Per Page",
             options=["24 Hours", "48 Hours", "72 Hours", "All Predicted Hours"],
-            index=0,
-            help="Select how many predicted hours to display per page."
+            index=0
         )
     
     if page_size_option == "24 Hours":
@@ -283,7 +294,7 @@ with tab1:
     start_row = (selected_page - 1) * p_size
     end_row = min(start_row + p_size, total_rows)
     
-    st.caption(f"Showing predicted hours **{start_row + 1} to {end_row}** of **{total_rows}** total forecast hours (Page **{selected_page}** of **{num_pages}**)")
+    st.caption(f"Showing predicted hours **{start_row + 1} to {end_row}** of **{total_rows}** total forecast hours")
     
     display_cols = ["timestamp", "sarimax_prediction", "lstm_residual_correction", "hybrid_final_forecast"]
     avail_cols = [c for c in display_cols if c in df_bess.columns]
@@ -298,29 +309,119 @@ with tab1:
     )
 
 with tab2:
-    st.markdown("### 🔋 Battery Energy Storage System (BESS) Operations")
-    st.plotly_chart(plot_bess_microgrid_dispatch(df_bess), use_container_width=True)
-    st.plotly_chart(plot_grid_energy_flows(df_bess), use_container_width=True)
+    st.markdown("### ⚡ Dedicated Energy Management & BESS Dashboard")
+    st.info("Simulating realistic microgrid energy flow: BESS charges during midday solar surplus, discharges during evening peak load, exports surplus when full, and imports grid power only at Minimum SOC (10%).")
+    
+    # Energy Flow Real-Time Telemetry Summary Cards
+    cur_solar = df_bess["hybrid_final_forecast"].iloc[0] if len(df_bess) > 0 else 0.0
+    cur_dem = df_bess["demand_kw"].iloc[0] if len(df_bess) > 0 else 0.0
+    cur_soc = df_bess["bess_soc_pct"].iloc[0] if len(df_bess) > 0 else 50.0
+    cur_chg = df_bess["bess_charge_kw"].iloc[0] if len(df_bess) > 0 else 0.0
+    cur_dis = df_bess["bess_discharge_kw"].iloc[0] if len(df_bess) > 0 else 0.0
+    cur_imp = df_bess["grid_import_kw"].iloc[0] if len(df_bess) > 0 else 0.0
+    cur_exp = df_bess["grid_export_kw"].iloc[0] if len(df_bess) > 0 else 0.0
+    cur_sur = df_bess["energy_surplus_kw"].iloc[0] if len(df_bess) > 0 else 0.0
+    cur_def = df_bess["energy_deficit_kw"].iloc[0] if len(df_bess) > 0 else 0.0
+    cur_curt = df_bess["curtailment_kw"].iloc[0] if len(df_bess) > 0 else 0.0
+    cur_mode = df_bess["bess_state"].iloc[0] if len(df_bess) > 0 else "Balanced"
+    
+    em_col1, em_col2, em_col3, em_col4, em_col5 = st.columns(5)
+    with em_col1:
+        st.metric("Solar Generation", f"{cur_solar:.1f} kW")
+        st.metric("Energy Surplus", f"{cur_sur:.1f} kW")
+    with em_col2:
+        st.metric("Current Demand", f"{cur_dem:.1f} kW")
+        st.metric("Energy Deficit", f"{cur_def:.1f} kW")
+    with em_col3:
+        st.metric("Battery SOC", f"{cur_soc:.1f} %")
+        st.metric("Curtailment", f"{cur_curt:.1f} kW")
+    with em_col4:
+        st.metric("Charging Power", f"{cur_chg:.1f} kW")
+        st.metric("Grid Import", f"{cur_imp:.1f} kW")
+    with em_col5:
+        st.metric("Discharging Power", f"{cur_dis:.1f} kW")
+        st.metric("Grid Export", f"{cur_exp:.1f} kW")
+        
+    st.markdown(f"**Current Operating Mode:** `{cur_mode}`")
+    st.markdown("---")
+    
+    # 5 Interactive Plotly Charts
+    st.plotly_chart(plot_solar_vs_demand(df_bess), use_container_width=True)
+    st.plotly_chart(plot_battery_soc(df_bess), use_container_width=True)
+    st.plotly_chart(plot_battery_charge_discharge(df_bess), use_container_width=True)
+    st.plotly_chart(plot_grid_import_export(df_bess), use_container_width=True)
+    st.plotly_chart(plot_hourly_energy_balance(df_bess), use_container_width=True)
 
-    st.markdown("#### ⚡ BESS Dispatch Telemetry Matrix")
-    bess_cols = ["timestamp", "demand_kw", "hybrid_final_forecast", "bess_soc_pct", "bess_power_kw", "grid_import_kw", "grid_export_kw", "curtailment_kw", "bess_state"]
+    st.markdown("#### ⚡ Microgrid BESS Dispatch Telemetry Matrix")
+    bess_cols = [
+        "timestamp", "hybrid_final_forecast", "demand_kw", "energy_surplus_kw", "energy_deficit_kw",
+        "bess_charge_kw", "bess_discharge_kw", "bess_soc_pct", "grid_import_kw", "grid_export_kw",
+        "curtailment_kw", "bess_state"
+    ]
     st.dataframe(
-        df_bess[bess_cols].head(24).rename(columns={
+        df_bess[bess_cols].head(48).rename(columns={
             "timestamp": "Timestamp",
-            "demand_kw": "Simulated Demand (kW)",
             "hybrid_final_forecast": "Solar Gen (kW)",
+            "demand_kw": "Demand (kW)",
+            "energy_surplus_kw": "Surplus (kW)",
+            "energy_deficit_kw": "Deficit (kW)",
+            "bess_charge_kw": "BESS Charge (kW)",
+            "bess_discharge_kw": "BESS Discharge (kW)",
             "bess_soc_pct": "Battery SOC (%)",
-            "bess_power_kw": "BESS Flow (+Chg/-Dis)",
             "grid_import_kw": "Grid Import (kW)",
             "grid_export_kw": "Grid Export (kW)",
-            "curtailment_kw": "Curtailed (kW)",
-            "bess_state": "Operational State"
+            "curtailment_kw": "Curtailment (kW)",
+            "bess_state": "Operating Mode"
         }),
         use_container_width=True
     )
 
 with tab3:
-    st.markdown("### 📡 Live Open-Meteo Weather Telemetry & SQLite Database")
+    st.markdown("### 🧠 Model Summary & Performance Evaluation")
+    
+    # Load empirical evaluation metrics computed directly from testing dataset
+    metrics_df, accuracy_pct = get_test_dataset_evaluation()
+    
+    col_sum1, col_sum2 = st.columns([2, 1])
+    with col_sum1:
+        st.markdown("#### 📊 Empirical Model Evaluation Metrics (Testing Dataset)")
+        st.dataframe(metrics_df, use_container_width=True)
+    with col_sum2:
+        st.markdown("#### 🎯 Overall Hybrid Accuracy")
+        st.markdown(f"""
+        <div class="metric-card" style="text-align: center; padding: 25px;">
+            <div class="metric-title">Overall Forecast Accuracy</div>
+            <div class="metric-value" style="font-size: 2.5rem; color: #059669;">{accuracy_pct:.2f}%</div>
+            <div class="metric-delta delta-positive">Empirically Evaluated on Test Set</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("#### ℹ️ Model Architecture Information")
+    
+    col_info1, col_info2 = st.columns(2)
+    with col_info1:
+        st.markdown("""
+        - **Model Name:** Hybrid SARIMAX + LSTM
+        - **Training Dataset:** NASA POWER Historical Dataset (1 Year Hourly Telemetry)
+        - **Prediction Horizon:** 24–48 Hours
+        """)
+    with col_info2:
+        st.markdown("""
+        - **Exogenous Features Used:**
+          • Direct Solar Irradiance (`direct_radiation`)
+          • Ambient Temperature (`temperature_2m`)
+          • Relative Humidity (`relative_humidity_2m`)
+          • Wind Speed (`wind_speed_10m`)
+          • Cloud Cover / Cloud Attenuation Index (`cloud_cover`)
+        """)
+        
+    st.markdown("---")
+    st.markdown("#### 📉 Neural Residual Error Diagnostics")
+    st.plotly_chart(plot_residual_analysis(df_bess), use_container_width=True)
+
+with tab4:
+    st.markdown("### 📡 Live Open-Meteo Weather Telemetry & SQLite Fleet")
     st.plotly_chart(plot_weather_telemetry(df_bess), use_container_width=True)
     
     st.markdown("#### 🗄️ SQLite Database: `solar_data_fleet.db` (`real_time_weather` Table)")
@@ -331,25 +432,6 @@ with tab3:
         st.markdown("##### Fleet Storage Stats")
         df_stats = get_fleet_stats(DB_PATH)
         st.dataframe(df_stats, use_container_width=True)
-
-with tab4:
-    st.markdown("### 🧠 Model Diagnostics & Performance Metrics")
-    st.plotly_chart(plot_residual_analysis(df_bess), use_container_width=True)
-    
-    # Calculate baseline comparison metrics against synthetic ground truth reference
-    sim_actual = df_bess["hybrid_final_forecast"] + np.random.normal(0, 8.0, len(df_bess))
-    sim_actual = np.clip(sim_actual, 0.0, None)
-    df_eval = df_bess.copy()
-    df_eval["sim_actual_kw"] = sim_actual
-    
-    eval_report = generate_evaluation_report(df_eval, "sim_actual_kw", "sarimax_prediction", "hybrid_final_forecast")
-    
-    st.markdown("#### 📊 Empirical Metric Comparison: Baseline SARIMAX vs Hybrid SARIMAX-LSTM")
-    col_m1, col_m2 = st.columns([1, 1])
-    with col_m1:
-        st.dataframe(eval_report, use_container_width=True)
-    with col_m2:
-        st.plotly_chart(plot_model_performance_comparison(eval_report), use_container_width=True)
 
 with tab5:
     st.markdown("### 📄 Export Simulation Data & Technical Report")
@@ -366,11 +448,10 @@ with tab5:
     st.markdown("---")
     st.markdown("#### 🛠️ Technical Architecture Specification")
     st.markdown("""
-    - **SARIMAX Model**: Captures non-stationary linear temporal dynamics and exogenous weather variable influences (Irradiance, Temp, Humidity, Wind).
-    - **LSTM Neural Network**: Trained strictly on SARIMAX residuals ($e_t = y_t - \hat{y}_{SARIMAX}$) to model nonlinear high-frequency atmospheric fluctuations.
-    - **Hybrid Combination**: Final Prediction $\hat{y}_{final}(t) = \hat{y}_{SARIMAX}(t) + \hat{e}_{LSTM}(t)$.
-    - **Open-Meteo Integration**: Live hourly weather telemetry stored directly into local SQLite database `solar_data_fleet.db`.
-    - **BESS Simulation**: Discrete hourly dispatch accounting for charge/discharge efficiency, maximum C-rate, and state-of-charge safety bounds.
+    - **SARIMAX Model**: Captures non-stationary linear temporal dynamics and exogenous weather variable influences.
+    - **LSTM Neural Network**: Models high-frequency non-linear residual errors ($e_t = y_t - \hat{y}_{SARIMAX}$).
+    - **Hybrid Forecast**: $\hat{y}_{final}(t) = \hat{y}_{SARIMAX}(t) + \hat{e}_{LSTM}(t)$.
+    - **BESS Energy Management**: Dispatch solver charging battery during solar surplus, discharging during demand peak, exporting surplus when full, and importing grid power at min SOC limit.
     """)
 
 # Footer
@@ -379,3 +460,4 @@ st.markdown("""
     Hybrid Solar SARIMAX-LSTM Forecasting & BESS SaaS Platform &bull; Antigravity AI Engine
 </div>
 """, unsafe_allow_html=True)
+

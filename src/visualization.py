@@ -82,70 +82,115 @@ def plot_solar_forecast(df: pd.DataFrame) -> go.Figure:
     fig.update_yaxes(title_text="Power (kW)")
     return fig
 
-def plot_bess_microgrid_dispatch(df: pd.DataFrame) -> go.Figure:
-    """Subplot chart showing Generation vs Demand and Battery SOC timeline."""
-    fig = make_subplots(
-        rows=2, cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.12,
-        subplot_titles=("Solar Generation vs Demand Profile", "Battery State of Charge (SOC %)")
-    )
-    
+def plot_solar_vs_demand(df: pd.DataFrame) -> go.Figure:
+    """Chart 1: Solar Generation vs Demand Profile with surplus/deficit highlights."""
+    fig = go.Figure()
     x_axis = df["timestamp"] if "timestamp" in df.columns else df.index
-    
     gen_col = "hybrid_final_forecast" if "hybrid_final_forecast" in df.columns else "sarimax_prediction"
     
-    # Row 1: Solar Gen vs Demand
     fig.add_trace(go.Scatter(
         x=x_axis, y=df[gen_col],
-        name="Hybrid Solar Gen", line=dict(color=COLORS["accent_cyan"], width=2.5),
-        fill="tozeroy", fillcolor="rgba(2, 132, 199, 0.12)"
-    ), row=1, col=1)
+        name="Predicted Solar Generation", line=dict(color=COLORS["accent_cyan"], width=3),
+        fill="tozeroy", fillcolor="rgba(2, 132, 199, 0.15)"
+    ))
     
     if "demand_kw" in df.columns:
         fig.add_trace(go.Scatter(
             x=x_axis, y=df["demand_kw"],
-            name="Simulated Demand Profile", line=dict(color=COLORS["accent_red"], width=2, dash="dot")
-        ), row=1, col=1)
+            name="Simulated Demand Profile", line=dict(color=COLORS["accent_red"], width=2.5, dash="dash")
+        ))
 
-    # Row 2: Battery SOC
+    set_dark_layout(fig, title="1. Solar Generation vs Demand Profile (kW)", height=420)
+    fig.update_yaxes(title_text="Power (kW)")
+    return fig
+
+def plot_battery_soc(df: pd.DataFrame) -> go.Figure:
+    """Chart 2: Battery State of Charge (SOC %) timeline with Min/Max limits."""
+    fig = go.Figure()
+    x_axis = df["timestamp"] if "timestamp" in df.columns else df.index
+    
     if "bess_soc_pct" in df.columns:
         fig.add_trace(go.Scatter(
             x=x_axis, y=df["bess_soc_pct"],
-            name="BESS SOC (%)", line=dict(color=COLORS["accent_green"], width=2.5),
-            fill="tozeroy", fillcolor="rgba(5, 150, 105, 0.15)"
-        ), row=2, col=1)
+            name="Battery SOC (%)", line=dict(color=COLORS["accent_green"], width=3),
+            fill="tozeroy", fillcolor="rgba(5, 150, 105, 0.18)"
+        ))
+        
+    # Min & Max threshold reference lines
+    fig.add_hline(y=10.0, line_dash="dash", line_color=COLORS["accent_red"], annotation_text="Min SOC (10%)")
+    fig.add_hline(y=90.0, line_dash="dash", line_color=COLORS["accent_amber"], annotation_text="Max SOC (90%)")
 
-    set_dark_layout(fig, title="🔋 BESS Dispatch & Microgrid Balance", height=480)
-    fig.update_yaxes(title_text="Power (kW)", row=1, col=1)
-    fig.update_yaxes(title_text="SOC (%)", range=[0, 100], row=2, col=1)
+    set_dark_layout(fig, title="2. Battery State of Charge (SOC %)", height=380)
+    fig.update_yaxes(title_text="SOC (%)", range=[0, 100])
     return fig
 
-def plot_grid_energy_flows(df: pd.DataFrame) -> go.Figure:
-    """Stacked bar chart showing Grid Import, Grid Export, and BESS Power."""
+def plot_battery_charge_discharge(df: pd.DataFrame) -> go.Figure:
+    """Chart 3: Battery Charge Power vs Discharging Power timeline."""
+    fig = go.Figure()
+    x_axis = df["timestamp"] if "timestamp" in df.columns else df.index
+    
+    if "bess_charge_kw" in df.columns:
+        fig.add_trace(go.Bar(
+            x=x_axis, y=df["bess_charge_kw"],
+            name="Charging Power (+kW)", marker_color=COLORS["accent_cyan"]
+        ))
+    if "bess_discharge_kw" in df.columns:
+        fig.add_trace(go.Bar(
+            x=x_axis, y=[-val for val in df["bess_discharge_kw"]],
+            name="Discharging Power (-kW)", marker_color=COLORS["accent_amber"]
+        ))
+
+    set_dark_layout(fig, title="3. Battery Charging & Discharging Power Flow (kW)", height=380)
+    fig.update_layout(barmode="overlay")
+    fig.update_yaxes(title_text="Power (kW)")
+    return fig
+
+def plot_grid_import_export(df: pd.DataFrame) -> go.Figure:
+    """Chart 4: Grid Import & Grid Export energy flow timeline."""
     fig = go.Figure()
     x_axis = df["timestamp"] if "timestamp" in df.columns else df.index
     
     if "grid_import_kw" in df.columns:
-        fig.add_trace(go.Bar(
+        fig.add_trace(go.Scatter(
             x=x_axis, y=df["grid_import_kw"],
-            name="Grid Import (Deficit)", marker_color=COLORS["accent_red"]
+            name="Grid Import (Deficit)", line=dict(color=COLORS["accent_red"], width=2.5),
+            fill="tozeroy", fillcolor="rgba(225, 29, 72, 0.15)"
         ))
     if "grid_export_kw" in df.columns:
-        fig.add_trace(go.Bar(
+        fig.add_trace(go.Scatter(
             x=x_axis, y=df["grid_export_kw"],
-            name="Grid Export (Surplus)", marker_color=COLORS["accent_green"]
-        ))
-    if "curtailment_kw" in df.columns:
-        fig.add_trace(go.Bar(
-            x=x_axis, y=df["curtailment_kw"],
-            name="Curtailed Energy", marker_color=COLORS["accent_amber"]
+            name="Grid Export (Surplus)", line=dict(color=COLORS["accent_green"], width=2.5),
+            fill="tozeroy", fillcolor="rgba(5, 150, 105, 0.15)"
         ))
 
-    set_dark_layout(fig, title="⚡ Grid Import / Export Energy Balance (kW)", height=380)
+    set_dark_layout(fig, title="4. Grid Import & Grid Export Dynamics (kW)", height=380)
+    fig.update_yaxes(title_text="Power (kW)")
+    return fig
+
+def plot_hourly_energy_balance(df: pd.DataFrame) -> go.Figure:
+    """Chart 5: Stacked Hourly Energy Balance breakdown."""
+    fig = go.Figure()
+    x_axis = df["timestamp"] if "timestamp" in df.columns else df.index
+    gen_col = "hybrid_final_forecast" if "hybrid_final_forecast" in df.columns else "sarimax_prediction"
+    
+    fig.add_trace(go.Bar(x=x_axis, y=df[gen_col], name="Solar Generation", marker_color=COLORS["accent_cyan"]))
+    if "bess_discharge_kw" in df.columns:
+        fig.add_trace(go.Bar(x=x_axis, y=df["bess_discharge_kw"], name="BESS Discharge", marker_color=COLORS["accent_amber"]))
+    if "grid_import_kw" in df.columns:
+        fig.add_trace(go.Bar(x=x_axis, y=df["grid_import_kw"], name="Grid Import", marker_color=COLORS["accent_red"]))
+
+    set_dark_layout(fig, title="5. Hourly Energy Generation & Supply Mix (kW)", height=400)
     fig.update_layout(barmode="stack")
     fig.update_yaxes(title_text="Power (kW)")
     return fig
+
+def plot_bess_microgrid_dispatch(df: pd.DataFrame) -> go.Figure:
+    """Subplot chart showing Generation vs Demand and Battery SOC timeline."""
+    return plot_solar_vs_demand(df)
+
+def plot_grid_energy_flows(df: pd.DataFrame) -> go.Figure:
+    """Grid energy flows wrapper."""
+    return plot_grid_import_export(df)
 
 def plot_residual_analysis(df: pd.DataFrame) -> go.Figure:
     """Plot SARIMAX Residuals vs LSTM Residual Corrections."""
