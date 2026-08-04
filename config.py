@@ -23,18 +23,19 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 SARIMAX_MODEL_PATH = os.path.join(MODEL_DIR, "sarimax.pkl")
 LSTM_MODEL_PATH = os.path.join(MODEL_DIR, "hybrid_lstm_residuals.keras")
 SCALER_PATH = os.path.join(MODEL_DIR, "scalers.pkl")
+MODEL_METRICS_PATH = os.path.join(MODEL_DIR, "model_metrics.json")
 RAW_DATASET_PATH = os.path.join(DATA_RAW_DIR, "nasa_power_solar_data.csv")
 
-# Supported Cities with Coordinates & Base Demand (kW) - Scaled for 500 kW Nominal Solar Array
+# Supported Cities with Coordinates & Base Demand (kW) - Calibrated for 500 kW Nominal Solar Array
 CITIES = {
-    "Chennai": {"lat": 13.0827, "lon": 80.2707, "base_demand_kw": 140.0, "peak_demand_kw": 350.0},
-    "New Delhi": {"lat": 28.6139, "lon": 77.2090, "base_demand_kw": 160.0, "peak_demand_kw": 380.0},
-    "Mumbai": {"lat": 19.0760, "lon": 72.8777, "base_demand_kw": 150.0, "peak_demand_kw": 360.0},
-    "Bengaluru": {"lat": 12.9716, "lon": 77.5946, "base_demand_kw": 130.0, "peak_demand_kw": 330.0},
-    "Hyderabad": {"lat": 17.3850, "lon": 78.4867, "base_demand_kw": 135.0, "peak_demand_kw": 340.0},
-    "Kolkata": {"lat": 22.5726, "lon": 88.3639, "base_demand_kw": 138.0, "peak_demand_kw": 345.0},
-    "Ahmedabad": {"lat": 23.0225, "lon": 72.5714, "base_demand_kw": 145.0, "peak_demand_kw": 355.0},
-    "Pune": {"lat": 18.5204, "lon": 73.8567, "base_demand_kw": 125.0, "peak_demand_kw": 320.0},
+    "Chennai": {"lat": 13.0827, "lon": 80.2707, "base_demand_kw": 60.0, "peak_demand_kw": 240.0},
+    "New Delhi": {"lat": 28.6139, "lon": 77.2090, "base_demand_kw": 65.0, "peak_demand_kw": 250.0},
+    "Mumbai": {"lat": 19.0760, "lon": 72.8777, "base_demand_kw": 60.0, "peak_demand_kw": 245.0},
+    "Bengaluru": {"lat": 12.9716, "lon": 77.5946, "base_demand_kw": 55.0, "peak_demand_kw": 230.0},
+    "Hyderabad": {"lat": 17.3850, "lon": 78.4867, "base_demand_kw": 58.0, "peak_demand_kw": 235.0},
+    "Kolkata": {"lat": 22.5726, "lon": 88.3639, "base_demand_kw": 60.0, "peak_demand_kw": 240.0},
+    "Ahmedabad": {"lat": 23.0225, "lon": 72.5714, "base_demand_kw": 62.0, "peak_demand_kw": 248.0},
+    "Pune": {"lat": 18.5204, "lon": 73.8567, "base_demand_kw": 55.0, "peak_demand_kw": 225.0},
 }
 
 # Feature definitions

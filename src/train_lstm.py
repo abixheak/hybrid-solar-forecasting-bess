@@ -4,11 +4,8 @@ import pandas as pd
 import joblib
 import logging
 from typing import Tuple, Dict, Any
-
-# Set Keras backend to torch
-os.environ["KERAS_BACKEND"] = "torch"
-import keras
-from keras import layers
+from src.train_sarimax import LinearExogBaseline
+from sklearn.neural_network import MLPRegressor
 
 from config import (
     LSTM_MODEL_PATH,
@@ -24,6 +21,31 @@ from src.dataset_generator import generate_nasa_power_dataset
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+class ResidualNeuralNetwork:
+    """
+    Multi-Layer Perceptron (MLP) Neural Network specialized in predicting
+    SARIMAX residual error corrections from exogenous weather features.
+    """
+    def __init__(self, hidden_layer_sizes: Tuple[int, int] = (64, 32), max_iter: int = 300):
+        self.model = MLPRegressor(
+            hidden_layer_sizes=hidden_layer_sizes,
+            activation="relu",
+            solver="adam",
+            max_iter=max_iter,
+            random_state=42,
+            early_stopping=True
+        )
+        
+    def fit(self, X: np.ndarray, y: np.ndarray):
+        X_flat = X.reshape(X.shape[0], -1) if len(X.shape) == 3 else X
+        self.model.fit(X_flat, y)
+        return self
+        
+    def predict(self, X: np.ndarray, verbose: int = 0) -> np.ndarray:
+        X_flat = X.reshape(X.shape[0], -1) if len(X.shape) == 3 else X
+        preds = self.model.predict(X_flat)
+        return np.expand_dims(preds, axis=1)
+
 def create_residual_sequences(
     residuals: np.ndarray,
     exog_features: np.ndarray,
@@ -35,8 +57,6 @@ def create_residual_sequences(
     """
     X, y = [], []
     num_samples = len(residuals)
-    
-    # Combined feature matrix: [exog_features, residual]
     combined = np.column_stack([exog_features, residuals])
     
     for i in range(seq_length, num_samples):
@@ -45,22 +65,6 @@ def create_residual_sequences(
         
     return np.array(X, dtype=np.float32), np.array(y, dtype=np.float32)
 
-def build_residual_lstm_model(input_shape: Tuple[int, int]) -> keras.Model:
-    """
-    Build a 2-Layer LSTM neural network specialized in predicting SARIMAX residual corrections.
-    """
-    inputs = keras.Input(shape=input_shape)
-    x = layers.LSTM(64, return_sequences=True)(inputs)
-    x = layers.Dropout(0.2)(x)
-    x = layers.LSTM(32, return_sequences=False)(x)
-    x = layers.Dropout(0.2)(x)
-    x = layers.Dense(16, activation="relu")(x)
-    outputs = layers.Dense(1, activation="linear")(x)
-
-    model = keras.Model(inputs=inputs, outputs=outputs, name="LSTM_Residual_Predictor")
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001), loss="mse", metrics=["mae"])
-    return model
-
 def train_lstm_residuals_model(
     residuals: pd.Series,
     train_df: pd.DataFrame,
@@ -68,9 +72,10 @@ def train_lstm_residuals_model(
     epochs: int = 15,
     batch_size: int = 32,
     model_path: str = LSTM_MODEL_PATH
-) -> keras.Model:
+) -> Any:
     """
-    Train LSTM model exclusively on SARIMAX residuals and save artifact to `hybrid_lstm_residuals.keras`.
+    Train residual neural network model exclusively on SARIMAX residuals
+    and save serialized model artifact to models directory.
     """
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
     scalers = load_scalers(SCALER_PATH)
@@ -78,37 +83,28 @@ def train_lstm_residuals_model(
     feature_scaler = scalers["feature_scaler"]
     scaled_exog = feature_scaler.transform(train_df[ALL_EXOG_FEATURES])
     
-    # Scale residuals
     res_vals = residuals.values.reshape(-1, 1)
     res_std = res_vals.std() if res_vals.std() > 0 else 1.0
-    scaled_res = res_vals / (3.0 * res_std) # Normalized residual bounds
+    scaled_res = res_vals / (3.0 * res_std)
     
     X_seq, y_seq = create_residual_sequences(scaled_res.flatten(), scaled_exog, seq_length=seq_length)
     
-    logger.info(f"LSTM Training dataset shape -> X: {X_seq.shape}, y: {y_seq.shape}")
+    logger.info(f"Residual NN Training dataset shape -> X: {X_seq.shape}, y: {y_seq.shape}")
+    logger.info("Fitting Neural Residual Predictor...")
     
-    model = build_residual_lstm_model(input_shape=(X_seq.shape[1], X_seq.shape[2]))
+    model = ResidualNeuralNetwork(hidden_layer_sizes=(64, 32), max_iter=300).fit(X_seq, y_seq)
     
-    logger.info("Training LSTM residual predictor...")
-    model.fit(
-        X_seq, y_seq,
-        epochs=epochs,
-        batch_size=batch_size,
-        validation_split=0.15,
-        verbose=1
-    )
-    
-    # Save model in .keras native format
-    model.save(model_path)
-    logger.info(f"Successfully trained & saved residual LSTM model to '{model_path}'")
+    # Save model artifact using joblib
+    joblib.dump(model, model_path)
+    logger.info(f"Successfully saved residual neural network model to '{model_path}'")
     return model
 
 def run_lstm_pipeline() -> None:
-    """Execute end-to-end LSTM pipeline using pre-calculated SARIMAX residuals."""
-    logger.info("--- Starting LSTM Residual Training Pipeline ---")
+    """Execute end-to-end residual neural network pipeline using pre-calculated SARIMAX residuals."""
+    logger.info("--- Starting Residual Neural Network Training Pipeline ---")
     
     if not os.path.exists(SARIMAX_MODEL_PATH):
-        raise FileNotFoundError("SARIMAX model pickle not found. Run train_sarimax.py first!")
+        raise FileNotFoundError(f"SARIMAX model missing: '{SARIMAX_MODEL_PATH}'. Run train_sarimax.py first!")
         
     sarimax_model = joblib.load(SARIMAX_MODEL_PATH)
     
@@ -117,7 +113,6 @@ def run_lstm_pipeline() -> None:
     df_feat = add_engineered_features(df_clean)
     train_df, _ = split_train_test(df_feat)
     
-    # Extract in-sample SARIMAX predictions and calculate residuals
     exog_train = train_df[ALL_EXOG_FEATURES]
     y_train = train_df[TARGET_COL]
     sarimax_preds = sarimax_model.predict(start=0, end=len(y_train)-1, exog=exog_train)
@@ -126,7 +121,16 @@ def run_lstm_pipeline() -> None:
     residuals = pd.Series(y_train.values - sarimax_preds)
     
     train_lstm_residuals_model(residuals, train_df)
-    logger.info("--- LSTM Residual Training Pipeline Completed ---")
+    
+    logger.info("Evaluating hybrid pipeline on test dataset and writing model_metrics.json...")
+    try:
+        from src.evaluation import get_test_dataset_evaluation
+        metrics_df, acc = get_test_dataset_evaluation()
+        logger.info(f"Hybrid Forecast Accuracy on test set: {acc}%")
+    except Exception as e:
+        logger.warning(f"Could not compute test metrics: {e}")
+
+    logger.info("--- Residual Neural Network Training Pipeline Completed ---")
 
 if __name__ == "__main__":
     run_lstm_pipeline()

@@ -26,7 +26,7 @@ from config import (
 from src.database import init_db, fetch_weather_records, get_fleet_stats
 from src.weather_api import sync_city_weather_to_sqlite
 from src.predict import run_hybrid_forecast
-from src.battery import generate_demand_profile, simulate_bess_operations
+from src.battery import generate_demand_profile, simulate_bess_operations, calculate_energy_diagnostics
 from src.evaluation import generate_evaluation_report, evaluate_predictions, get_test_dataset_evaluation
 from src.visualization import (
     plot_solar_forecast,
@@ -312,6 +312,50 @@ with tab2:
     st.markdown("### ⚡ Dedicated Energy Management & BESS Dashboard")
     st.info("Simulating realistic microgrid energy flow: BESS charges during midday solar surplus, discharges during evening peak load, exports surplus when full, and imports grid power only at Minimum SOC (10%).")
     
+    # Calculate Energy Balance Diagnostics
+    diag = calculate_energy_diagnostics(df_bess, battery_capacity_kwh=capacity_kwh)
+    
+    st.markdown("#### 📊 Energy Balance Diagnostic Statistics")
+    d_col1, d_col2, d_col3, d_col4 = st.columns(4)
+    with d_col1:
+        st.markdown(f"""
+        <div class="metric-card" style="padding: 15px;">
+            <div style="font-size: 0.85rem; color: #64748b; font-weight: 600;">SOLAR FORECAST DISTRIBUTION</div>
+            <div style="font-size: 0.95rem; margin-top: 5px;">Min: <b>{diag['solar_min_kw']} kW</b></div>
+            <div style="font-size: 0.95rem;">Max: <b>{diag['solar_max_kw']} kW</b></div>
+            <div style="font-size: 0.95rem;">Mean: <b>{diag['solar_mean_kw']} kW</b></div>
+        </div>
+        """, unsafe_allow_html=True)
+    with d_col2:
+        st.markdown(f"""
+        <div class="metric-card" style="padding: 15px;">
+            <div style="font-size: 0.85rem; color: #64748b; font-weight: 600;">SIMULATED DEMAND PROFILE</div>
+            <div style="font-size: 0.95rem; margin-top: 5px;">Min: <b>{diag['demand_min_kw']} kW</b></div>
+            <div style="font-size: 0.95rem;">Max: <b>{diag['demand_max_kw']} kW</b></div>
+            <div style="font-size: 0.95rem;">Mean: <b>{diag['demand_mean_kw']} kW</b></div>
+        </div>
+        """, unsafe_allow_html=True)
+    with d_col3:
+        st.markdown(f"""
+        <div class="metric-card" style="padding: 15px;">
+            <div style="font-size: 0.85rem; color: #64748b; font-weight: 600;">TIMESTEP BALANCE STATES</div>
+            <div style="font-size: 0.95rem; margin-top: 5px; color: #059669;">🟢 Surplus: <b>{diag['surplus_steps']} hrs ({diag['surplus_pct']}%)</b></div>
+            <div style="font-size: 0.95rem; color: #e11d48;">🔴 Deficit: <b>{diag['deficit_steps']} hrs ({diag['deficit_pct']}%)</b></div>
+            <div style="font-size: 0.95rem;">Total Horizon: <b>{len(df_bess)} hrs</b></div>
+        </div>
+        """, unsafe_allow_html=True)
+    with d_col4:
+        st.markdown(f"""
+        <div class="metric-card" style="padding: 15px;">
+            <div style="font-size: 0.85rem; color: #64748b; font-weight: 600;">GRID & BATTERY ENERGY</div>
+            <div style="font-size: 0.95rem; margin-top: 5px;">Grid Export: <b>{diag['total_grid_export_kwh']} kWh</b></div>
+            <div style="font-size: 0.95rem;">Grid Import: <b>{diag['total_grid_import_kwh']} kWh</b></div>
+            <div style="font-size: 0.95rem;">SOC Range: <b>{diag['min_soc_kwh']} - {diag['max_soc_kwh']} kWh</b></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     # Energy Flow Real-Time Telemetry Summary Cards
     cur_solar = df_bess["hybrid_final_forecast"].iloc[0] if len(df_bess) > 0 else 0.0
     cur_dem = df_bess["demand_kw"].iloc[0] if len(df_bess) > 0 else 0.0
@@ -404,9 +448,9 @@ with tab3:
         st.markdown("#### 🎯 Overall Hybrid Accuracy Summary")
         st.markdown(f"""
         <div class="metric-card" style="text-align: center; padding: 25px;">
-            <div class="metric-title">Overall Forecast Accuracy</div>
+            <div class="metric-title">MAPE-derived Forecast Accuracy</div>
             <div class="metric-value" style="font-size: 2.5rem; color: #059669;">{accuracy_pct:.2f}%</div>
-            <div class="metric-delta delta-positive">Empirically Evaluated on Test Set</div>
+            <div class="metric-delta delta-positive">Empirically Evaluated (100 - MAPE%) on Test Set</div>
         </div>
         """, unsafe_allow_html=True)
 

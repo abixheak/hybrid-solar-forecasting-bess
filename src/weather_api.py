@@ -104,9 +104,20 @@ def generate_synthetic_weather_records(city_name: str, days: int = 7) -> List[Di
 def sync_city_weather_to_sqlite(city_name: str, forecast_days: int = 7) -> pd.DataFrame:
     """
     Fetch weather from Open-Meteo, store into SQLite database, and read back from SQLite.
-    Returns DataFrame read strictly from SQLite.
+    Returns DataFrame read strictly from SQLite with standard feature column names.
     """
     records = fetch_open_meteo_forecast(city_name, forecast_days=forecast_days)
     insert_weather_records(records, db_path=DB_PATH)
     df_sqlite = fetch_weather_records(city_name, limit=forecast_days * 24, db_path=DB_PATH)
+    
+    # Map column aliases so ML models receive expected exogenous feature names
+    if "temperature" in df_sqlite.columns:
+        df_sqlite["temperature_2m"] = df_sqlite["temperature"]
+    if "humidity" in df_sqlite.columns:
+        df_sqlite["relative_humidity_2m"] = df_sqlite["humidity"]
+    if "wind_speed" in df_sqlite.columns:
+        df_sqlite["wind_speed_10m"] = df_sqlite["wind_speed"]
+    if "irradiance" in df_sqlite.columns:
+        df_sqlite["direct_radiation"] = df_sqlite["irradiance"]
+        
     return df_sqlite

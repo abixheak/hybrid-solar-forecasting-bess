@@ -1,0 +1,23 @@
+{
+    "sarimax": {
+        "mae": 2.105,
+        "rmse": 3.839,
+        "mape": 2.95,
+        "r2": 0.9991,
+        "accuracy": 97.05
+    },
+    "lstm_residual": {
+        "mae": 1.71,
+        "rmse": 3.151,
+        "mape": 99.08,
+        "r2": 0.2202,
+        "accuracy": 0.92
+    },
+    "hybrid": {
+        "mae": 1.71,
+        "rmse": 3.151,
+        "mape": 2.52,
+        "r2": 0.9994,
+        "accuracy": 97.48
+    }
+}
