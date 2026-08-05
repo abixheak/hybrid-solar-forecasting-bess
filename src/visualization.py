@@ -37,7 +37,8 @@ def set_dark_layout(fig, title: str = "", height: int = 420):
             font_color="#0f172a",
             font_family="Inter, sans-serif",
             bordercolor="#cbd5e1"
-        )
+        ),
+        transition=dict(duration=500, easing="cubic-in-out")
     )
     return fig
 

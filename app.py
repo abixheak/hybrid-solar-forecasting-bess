@@ -3,7 +3,10 @@ import pandas as pd
 import numpy as np
 import os
 import logging
+import requests
 from datetime import datetime
+from streamlit_lottie import st_lottie
+
 
 # Set page config as very first Streamlit call
 st.set_page_config(
@@ -55,6 +58,21 @@ inject_custom_css()
 
 # Initialize Database
 init_db()
+
+# Lottie Animation Loader
+@st.cache_data
+def load_lottieurl(url: str):
+    try:
+        r = requests.get(url)
+        if r.status_code != 200:
+            return None
+        return r.json()
+    except:
+        return None
+
+lottie_solar = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_f1dhzsnx.json") # Sun animation
+lottie_energy = load_lottieurl("https://assets9.lottiefiles.com/packages/lf20_t9gklc6h.json") # Energy/Pulse
+
 
 # --- AUTHENTICATION SYSTEM ---
 if "authenticated" not in st.session_state:
@@ -141,20 +159,26 @@ peak_load_modifier = st.sidebar.slider(
 refresh_weather = st.sidebar.button("🔄 Sync Open-Meteo Weather Data", use_container_width=True)
 
 # --- HERO HEADER BANNER ---
-st.markdown(f"""
-<div class="hero-banner">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            <h1>Hybrid Solar Power Forecasting & Energy Management System</h1>
-            <p>SARIMAX-LSTM Residual Engine & Realistic BESS Microgrid Simulation</p>
-        </div>
-        <div class="live-badge">
-            <div class="pulse-dot"></div>
-            SYSTEM ONLINE &bull; {selected_city.upper()}
+col_hero1, col_hero2 = st.columns([4, 1])
+with col_hero1:
+    st.markdown(f"""
+    <div class="hero-banner">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>Hybrid Solar Power Forecasting & Energy Management</h1>
+                <p>SARIMAX-LSTM Residual Engine & Realistic BESS Microgrid Simulation</p>
+            </div>
+            <div class="live-badge">
+                <div class="pulse-dot"></div>
+                SYSTEM ONLINE &bull; {selected_city.upper()}
+            </div>
         </div>
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+with col_hero2:
+    if lottie_solar:
+        st_lottie(lottie_solar, height=120, key="solar_anim")
+
 
 # Check model availability
 if not (os.path.exists(SARIMAX_MODEL_PATH) and os.path.exists(LSTM_MODEL_PATH)):
@@ -207,7 +231,7 @@ total_grid_export = float(df_bess["grid_export_kw"].sum())
 
 with col1:
     st.markdown(f"""
-    <div class="metric-card">
+    <div class="metric-card stagger-1">
         <div class="metric-title">Current Generation</div>
         <div class="metric-value">{current_gen:.1f} <span style="font-size: 1rem;">kW</span></div>
         <div class="metric-delta delta-positive">Live Solar Output</div>
@@ -216,7 +240,7 @@ with col1:
 
 with col2:
     st.markdown(f"""
-    <div class="metric-card">
+    <div class="metric-card stagger-2">
         <div class="metric-title">Current Demand</div>
         <div class="metric-value">{current_demand:.1f} <span style="font-size: 1rem;">kW</span></div>
         <div class="metric-delta delta-neutral">Simulated Load</div>
@@ -225,7 +249,7 @@ with col2:
 
 with col3:
     st.markdown(f"""
-    <div class="metric-card">
+    <div class="metric-card stagger-3">
         <div class="metric-title">Battery SOC</div>
         <div class="metric-value">{latest_soc:.1f}%</div>
         <div class="metric-delta delta-positive">{latest_soc * capacity_kwh / 100:.0f} / {capacity_kwh:.0f} kWh</div>
@@ -234,7 +258,7 @@ with col3:
 
 with col4:
     st.markdown(f"""
-    <div class="metric-card">
+    <div class="metric-card stagger-4">
         <div class="metric-title">Operating Mode</div>
         <div class="metric-value" style="font-size: 1.2rem; margin-top: 5px;">{current_mode}</div>
         <div class="metric-delta delta-positive">Live BESS Dispatch</div>
@@ -243,7 +267,7 @@ with col4:
 
 with col5:
     st.markdown(f"""
-    <div class="metric-card">
+    <div class="metric-card stagger-5">
         <div class="metric-title">Grid Import / Export</div>
         <div class="metric-value" style="font-size: 1.2rem;">{total_grid_import:.0f} / {total_grid_export:.0f} <span style="font-size: 0.8rem;">kWh</span></div>
         <div class="metric-delta delta-neutral">Total Grid Transfer</div>

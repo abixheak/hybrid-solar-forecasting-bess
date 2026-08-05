@@ -33,13 +33,26 @@ h1, h2, h3, h4, h5, h6, .hero-banner h1, .login-header {
 @keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translateY(16px);
+        transform: translateY(24px);
     }
     to {
         opacity: 1;
         transform: translateY(0);
     }
 }
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Staggered Animation Classes */
+.stagger-1 { animation-delay: 0.1s !important; }
+.stagger-2 { animation-delay: 0.2s !important; }
+.stagger-3 { animation-delay: 0.3s !important; }
+.stagger-4 { animation-delay: 0.4s !important; }
+.stagger-5 { animation-delay: 0.5s !important; }
 
 @keyframes pulseLive {
     0% {
@@ -58,18 +71,32 @@ h1, h2, h3, h4, h5, h6, .hero-banner h1, .login-header {
 
 /* App Background Structure */
 .stApp {
-    background: radial-gradient(circle at 50% 0%, #ffffff 0%, #f1f5f9 60%, #e2e8f0 100%) !important;
-    background-attachment: fixed !important;
+    background: linear-gradient(-45deg, #f8fafc, #eff6ff, #e2e8f0, #e0e7ff) !important;
+    background-size: 400% 400% !important;
+    animation: gradientBG 15s ease infinite !important;
+}
+
+/* Hide Default Streamlit Elements */
+#MainMenu {visibility: hidden;}
+header {visibility: hidden !important;}
+footer {visibility: hidden;}
+.block-container {
+    padding-top: 1rem !important;
+    padding-bottom: 2rem !important;
+    max-width: 95% !important;
 }
 
 /* Glassmorphic Container Cards */
 .glass-card, .sidebar-card, .metric-card, .login-box {
-    animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0; /* Starts hidden for animation */
 }
 
 .glass-card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
     box-shadow: var(--card-shadow);
     border-radius: 18px;
     padding: 24px;
@@ -150,18 +177,20 @@ h1, h2, h3, h4, h5, h6, .hero-banner h1, .login-header {
 
 /* KPI Metric Cards */
 .metric-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
     border-radius: 16px;
     padding: 20px 22px;
-    box-shadow: var(--card-shadow);
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .metric-card:hover {
-    border-color: #93c5fd;
-    transform: translateY(-3px);
-    box-shadow: var(--hover-shadow);
+    border-color: rgba(147, 197, 253, 0.8);
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 15px 30px -5px rgba(37, 99, 235, 0.15), 0 8px 10px -5px rgba(37, 99, 235, 0.05);
 }
 
 .metric-title {
