@@ -29,8 +29,8 @@ from config import (
 from src.database import init_db, fetch_weather_records, get_fleet_stats
 from src.weather_api import sync_city_weather_to_sqlite
 from src.predict import run_hybrid_forecast
-from src.battery import generate_demand_profile, simulate_bess_operations, calculate_energy_diagnostics
-from src.evaluation import generate_evaluation_report, evaluate_predictions, get_test_dataset_evaluation
+from src.battery import generate_demand_profile, simulate_bess_operations, simulate_bess_operations_predictive, calculate_energy_diagnostics
+from src.evaluation import generate_evaluation_report, evaluate_predictions, get_test_dataset_evaluation, calculate_structural_adequacy, compare_dispatch_strategies, diagnose_remaining_deficit, generate_sizing_recommendation
 from src.visualization import (
     plot_solar_forecast,
     plot_solar_vs_demand,
@@ -40,7 +40,9 @@ from src.visualization import (
     plot_hourly_energy_balance,
     plot_residual_analysis,
     plot_weather_telemetry,
-    plot_model_performance_comparison
+    plot_model_performance_comparison,
+    plot_predictive_soc_target,
+    plot_failure_mode_breakdown
 )
 
 # Configure logging
@@ -145,6 +147,14 @@ charge_eff = st.sidebar.slider("Charge Efficiency", min_value=0.80, max_value=1.
 discharge_eff = st.sidebar.slider("Discharge Efficiency", min_value=0.80, max_value=1.00, value=0.95, step=0.01)
 
 st.sidebar.markdown("---")
+st.sidebar.markdown("### 🎛️ Controller Selection")
+controller_type = st.sidebar.radio(
+    "BESS Dispatch Controller",
+    options=["Reactive (Baseline)", "Predictive (Forecast-Aware)"],
+    index=0
+)
+
+st.sidebar.markdown("---")
 st.sidebar.markdown("### 📈 Demand Profile Adjuster")
 
 peak_load_modifier = st.sidebar.slider(
@@ -206,7 +216,8 @@ with st.spinner("Fetching weather from Open-Meteo & executing hybrid SARIMAX-LST
     demand_series = generate_demand_profile(selected_city, timestamps, peak_load_modifier=peak_load_modifier)
     
     # Step 4: Run BESS Microgrid Dispatch Engine
-    df_bess = simulate_bess_operations(
+    # Always run baseline for comparison
+    df_bess_baseline = simulate_bess_operations(
         df_forecast,
         battery_capacity_kwh=capacity_kwh,
         initial_soc_pct=initial_soc_pct,
@@ -218,6 +229,28 @@ with st.spinner("Fetching weather from Open-Meteo & executing hybrid SARIMAX-LST
         max_soc_pct=max_soc_pct,
         demand_kw_series=demand_series
     )
+    
+    df_bess_predictive = simulate_bess_operations_predictive(
+        df_forecast,
+        battery_capacity_kwh=capacity_kwh,
+        initial_soc_pct=initial_soc_pct,
+        max_charge_kw=max_charge_kw,
+        max_discharge_kw=max_discharge_kw,
+        charge_eff=charge_eff,
+        discharge_eff=discharge_eff,
+        min_soc_pct=min_soc_pct,
+        max_soc_pct=max_soc_pct,
+        demand_kw_series=demand_series,
+        horizon_hours=24
+    )
+    
+    df_bess = df_bess_predictive if controller_type == "Predictive (Forecast-Aware)" else df_bess_baseline
+    
+    # 6-Stage Diagnostic Chain
+    st.session_state["structural_adequacy"] = calculate_structural_adequacy(df_forecast, demand_col="simulated_demand_kw", generation_col="hybrid_final_forecast", window_days=[7, 30])
+    st.session_state["dispatch_comparison"] = compare_dispatch_strategies(df_bess_baseline, df_bess_predictive)
+    st.session_state["failure_diagnosis"] = diagnose_remaining_deficit(df_bess_predictive, window_days=[7, 30])
+    st.session_state["sizing_recs"] = generate_sizing_recommendation(st.session_state["failure_diagnosis"], df_bess_predictive)
 
 # --- TOP KPI METRIC CARDS ---
 col1, col2, col3, col4, col5 = st.columns(5)
@@ -277,10 +310,11 @@ with col5:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- TABBED DASHBOARD ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "☀️ Solar Forecast",
     "⚡ Energy Management & BESS",
     "🧠 Model Summary & Accuracy",
+    "🔍 System Diagnostics & Sizing",
     "📡 Live Weather Telemetry",
     "📄 Data Export & Report"
 ])
@@ -414,6 +448,8 @@ with tab2:
     st.markdown("---")
     
     # 5 Interactive Plotly Charts
+    if controller_type == "Predictive (Forecast-Aware)":
+        st.plotly_chart(plot_predictive_soc_target(df_bess), use_container_width=True)
     st.plotly_chart(plot_solar_vs_demand(df_bess), use_container_width=True)
     st.plotly_chart(plot_battery_soc(df_bess), use_container_width=True)
     st.plotly_chart(plot_battery_charge_discharge(df_bess), use_container_width=True)
@@ -503,6 +539,68 @@ with tab3:
     st.plotly_chart(plot_residual_analysis(df_bess), use_container_width=True)
 
 with tab4:
+    st.markdown("### 🔍 System Diagnostics & Sizing Recommendations")
+    
+    # Stage 1
+    st.markdown("#### 🏗️ Stage 1: Structural Adequacy (Zero-Battery Baseline)")
+    sa = st.session_state.get("structural_adequacy", {})
+    if not sa:
+        st.info("Awaiting structural adequacy data...")
+    else:
+        cols = st.columns(len(sa))
+        for idx, (win, data) in enumerate(sa.items()):
+            with cols[idx]:
+                st.markdown(f"**{win} Window**")
+                st.metric("Total Surplus", f"{data['total_surplus_kwh']} kWh")
+                st.metric("Total Deficit", f"{data['total_deficit_kwh']} kWh")
+                st.metric("Adequacy Ratio", f"{data['ratio']}")
+                st.info(data['verdict'])
+            
+    st.markdown("---")
+    
+    # Stage 4
+    st.markdown("#### ⚖️ Stage 4: Predictive Controller vs Reactive Baseline Comparison")
+    comp = st.session_state.get("dispatch_comparison", {})
+    if not comp:
+        st.info("Awaiting comparison data...")
+    else:
+        cc1, cc2, cc3 = st.columns(3)
+        with cc1:
+            st.metric("Grid Import Reduction", f"{comp.get('grid_import_kwh_reduction', 0)} kWh", delta=f"{comp.get('grid_import_kwh_reduction_pct', 0)}%")
+        with cc2:
+            st.metric("Total Import (Predictive vs Baseline)", f"{comp.get('predictive_total_import', 0)} / {comp.get('baseline_total_import', 0)} kWh")
+        with cc3:
+            b_min = comp.get("min_soc_reached_comparison", {}).get("baseline", 0)
+            p_min = comp.get("min_soc_reached_comparison", {}).get("predictive", 0)
+            st.metric("Min SOC Reached (Pred vs Base)", f"{p_min}% / {b_min}%")
+        
+    st.markdown("---")
+    
+    # Stage 5
+    st.markdown("#### 🚨 Stage 5: Failure-Mode Diagnosis (Post-Predictive Control)")
+    diag = st.session_state.get("failure_diagnosis", {})
+    if not diag:
+        st.info("Awaiting failure diagnosis data...")
+    else:
+        st.plotly_chart(plot_failure_mode_breakdown(diag), use_container_width=True)
+    
+    st.markdown("---")
+    
+    # Stage 6
+    st.markdown("#### 💡 Stage 6: Sizing Recommendations")
+    recs = st.session_state.get("sizing_recs", {})
+    if not recs:
+        st.info("Awaiting sizing recommendations...")
+    else:
+        for win, rec_data in recs.items():
+            st.markdown(f"**{win} Horizon:** {rec_data['verdict']}")
+            if not rec_data.get("recommendations", []):
+                st.success("✔️ Fully optimized.")
+            else:
+                for r in rec_data.get("recommendations", []):
+                    st.warning(f"🔧 {r}")
+
+with tab5:
     st.markdown("### 📡 Live Open-Meteo Weather Telemetry & SQLite Fleet")
     st.plotly_chart(plot_weather_telemetry(df_bess), use_container_width=True)
     
@@ -515,7 +613,7 @@ with tab4:
         df_stats = get_fleet_stats(DB_PATH)
         st.dataframe(df_stats, use_container_width=True)
 
-with tab5:
+with tab6:
     st.markdown("### 📄 Export Simulation Data & Technical Report")
     
     csv_data = df_bess.to_csv(index=False).encode('utf-8')

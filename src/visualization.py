@@ -247,3 +247,49 @@ def plot_model_performance_comparison(metrics_df: pd.DataFrame) -> go.Figure:
     set_dark_layout(fig, title="📊 Baseline vs Hybrid Error Metrics (MAE / RMSE)", height=360)
     fig.update_layout(barmode="group")
     return fig
+
+def plot_predictive_soc_target(df: pd.DataFrame) -> go.Figure:
+    """Plot actual BESS SOC vs Required SOC Target for predictive controller."""
+    fig = go.Figure()
+    x_axis = df["timestamp"] if "timestamp" in df.columns else df.index
+    
+    if "bess_soc_kwh" in df.columns:
+        fig.add_trace(go.Scatter(
+            x=x_axis, y=df["bess_soc_kwh"],
+            name="Actual Battery SOC (kWh)", line=dict(color=COLORS["accent_green"], width=3),
+            fill="tozeroy", fillcolor="rgba(5, 150, 105, 0.18)"
+        ))
+        
+    if "required_soc_target_kwh" in df.columns:
+        fig.add_trace(go.Scatter(
+            x=x_axis, y=df["required_soc_target_kwh"],
+            name="Required SOC Target (kWh)", line=dict(color=COLORS["accent_blue"], width=2, dash="dash")
+        ))
+
+    set_dark_layout(fig, title="🔋 Predictive Controller: Actual SOC vs Dynamic Target", height=380)
+    fig.update_yaxes(title_text="Energy (kWh)")
+    return fig
+
+def plot_failure_mode_breakdown(diagnosis: dict) -> go.Figure:
+    """Stacked bar chart showing failure mode breakdown per window."""
+    fig = go.Figure()
+    
+    windows = list(diagnosis.keys())
+    gen_limited = []
+    energy_limited = []
+    power_limited = []
+    
+    for w in windows:
+        bd = diagnosis[w].get("breakdown", {})
+        gen_limited.append(bd.get("GENERATION-LIMITED", 0.0))
+        energy_limited.append(bd.get("STORAGE ENERGY-LIMITED", 0.0))
+        power_limited.append(bd.get("STORAGE POWER-LIMITED", 0.0))
+        
+    fig.add_trace(go.Bar(x=windows, y=gen_limited, name="Generation-Limited (kWh)", marker_color=COLORS["accent_amber"]))
+    fig.add_trace(go.Bar(x=windows, y=energy_limited, name="Storage Energy-Limited (kWh)", marker_color=COLORS["accent_blue"]))
+    fig.add_trace(go.Bar(x=windows, y=power_limited, name="Storage Power-Limited (kWh)", marker_color=COLORS["accent_red"]))
+
+    set_dark_layout(fig, title="⚠️ Grid Deficit Failure Mode Attribution", height=380)
+    fig.update_layout(barmode="stack")
+    fig.update_yaxes(title_text="Unresolved Deficit (kWh)")
+    return fig
