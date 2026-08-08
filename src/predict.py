@@ -60,11 +60,26 @@ class HybridForecaster:
         exog_df = df_feat[ALL_EXOG_FEATURES]
         
         try:
-            raw_p = self.sarimax_model.predict(start=0, end=len(df_feat) - 1, exog=exog_df)
-            sarimax_preds = raw_p.values if hasattr(raw_p, "values") else np.array(raw_p)
+            pred_obj = self.sarimax_model.get_prediction(start=0, end=len(df_feat) - 1, exog=exog_df)
+            sarimax_preds = pred_obj.predicted_mean.values if hasattr(pred_obj.predicted_mean, "values") else np.array(pred_obj.predicted_mean)
+            conf_int = pred_obj.conf_int()
+            conf_int_vals = conf_int.values if hasattr(conf_int, "values") else np.array(conf_int)
+            sarimax_ci_width = conf_int_vals[:, 1] - conf_int_vals[:, 0] if conf_int_vals.shape[1] == 2 else np.zeros(len(df_feat))
         except Exception:
-            raw_p = self.sarimax_model.forecast(steps=len(df_feat), exog=exog_df)
-            sarimax_preds = raw_p.values if hasattr(raw_p, "values") else np.array(raw_p)
+            try:
+                pred_obj = self.sarimax_model.get_forecast(steps=len(df_feat), exog=exog_df)
+                sarimax_preds = pred_obj.predicted_mean.values if hasattr(pred_obj.predicted_mean, "values") else np.array(pred_obj.predicted_mean)
+                conf_int = pred_obj.conf_int()
+                conf_int_vals = conf_int.values if hasattr(conf_int, "values") else np.array(conf_int)
+                sarimax_ci_width = conf_int_vals[:, 1] - conf_int_vals[:, 0] if conf_int_vals.shape[1] == 2 else np.zeros(len(df_feat))
+            except Exception:
+                try:
+                    raw_p = self.sarimax_model.predict(start=0, end=len(df_feat) - 1, exog=exog_df)
+                    sarimax_preds = raw_p.values if hasattr(raw_p, "values") else np.array(raw_p)
+                except Exception:
+                    raw_p = self.sarimax_model.forecast(steps=len(df_feat), exog=exog_df)
+                    sarimax_preds = raw_p.values if hasattr(raw_p, "values") else np.array(raw_p)
+                sarimax_ci_width = np.zeros(len(df_feat))
             
         sarimax_preds = np.clip(sarimax_preds, 0.0, None)
         
@@ -124,6 +139,7 @@ class HybridForecaster:
 
         result_df = weather_df.copy()
         result_df["sarimax_prediction"] = np.round(sarimax_preds, 2)
+        result_df["sarimax_ci_width"] = np.round(sarimax_ci_width, 2)
         result_df["lstm_residual_correction"] = np.round(lstm_corrections, 2)
         result_df["hybrid_final_forecast"] = np.round(hybrid_preds, 2)
         
