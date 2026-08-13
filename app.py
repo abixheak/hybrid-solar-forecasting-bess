@@ -185,6 +185,14 @@ with col_hero1:
         </div>
     </div>
     """, unsafe_allow_html=True)
+# Synthetic data warning banner (rendered after weather fetch, outside spinner)
+if st.session_state.get("weather_source") == "synthetic":
+    st.warning(
+        "⚠️ **Synthetic Weather Data Active** — Open-Meteo API is unreachable. "
+        "Forecasts are based on physics-modelled synthetic weather, not live telemetry. "
+        "Click **Sync Open-Meteo Weather Data** when connectivity is restored.",
+        icon="📡"
+    )
 with col_hero2:
     if lottie_solar:
         st_lottie(lottie_solar, height=120, key="solar_anim")
@@ -199,14 +207,21 @@ if not (os.path.exists(SARIMAX_MODEL_PATH) and os.path.exists(LSTM_MODEL_PATH)):
 # --- DATA PIPELINE & DISPATCH EXECUTION ---
 with st.spinner("Fetching weather from Open-Meteo & executing hybrid SARIMAX-LSTM forecast..."):
     # Step 1: Open-Meteo -> SQLite -> Read from SQLite
-    if refresh_weather or f"weather_{selected_city}" not in st.session_state:
-        df_weather = sync_city_weather_to_sqlite(selected_city, forecast_days=forecast_horizon_days)
-        st.session_state[f"weather_{selected_city}"] = df_weather
+    # Cache key includes city + horizon so slider changes always trigger a fresh fetch.
+    cache_key = f"weather_{selected_city}_{forecast_horizon_days}"
+    expected_rows = forecast_horizon_days * 24
+    cached_weather = st.session_state.get(cache_key)
+    if refresh_weather or cached_weather is None or len(cached_weather) < expected_rows:
+        df_weather, weather_source = sync_city_weather_to_sqlite(selected_city, forecast_days=forecast_horizon_days)
+        st.session_state[cache_key] = df_weather
+        st.session_state["weather_source"] = weather_source
     else:
-        df_weather = st.session_state[f"weather_{selected_city}"]
+        df_weather = cached_weather
+        weather_source = st.session_state.get("weather_source", "live")
 
     if df_weather.empty:
-        df_weather = sync_city_weather_to_sqlite(selected_city, forecast_days=forecast_horizon_days)
+        df_weather, weather_source = sync_city_weather_to_sqlite(selected_city, forecast_days=forecast_horizon_days)
+        st.session_state["weather_source"] = weather_source
 
     # Step 2: Pass SQLite weather features to SARIMAX + LSTM Predictor
     df_forecast = run_hybrid_forecast(df_weather)
@@ -482,57 +497,66 @@ with tab2:
 
 with tab3:
     st.markdown("### 🧠 Model Summary & Accuracy Evaluation")
-    
+
     # Load empirical evaluation metrics computed directly from testing dataset
     metrics_df, accuracy_pct = get_test_dataset_evaluation()
-    
-    # Summary KPI row for model accuracy metrics
-    col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
-    sari_acc = metrics_df.loc[metrics_df['Model']=='SARIMAX', 'Accuracy (%)'].values[0] if 'Accuracy (%)' in metrics_df.columns and len(metrics_df.loc[metrics_df['Model']=='SARIMAX']) > 0 else 85.80
-    acc_gain = accuracy_pct - sari_acc
-    
-    with col_kpi1:
-        st.metric("SARIMAX Baseline Accuracy", f"{sari_acc:.2f} %")
-    with col_kpi2:
-        st.metric("Hybrid Forecast Accuracy", f"{accuracy_pct:.2f} %", delta=f"+{acc_gain:.2f}% vs Baseline")
-    with col_kpi3:
-        st.metric("Model Architecture", "SARIMAX + LSTM Residuals")
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col_sum1, col_sum2 = st.columns([2, 1])
-    with col_sum1:
-        st.markdown("#### 📊 Empirical Model Evaluation Metrics (Testing Dataset)")
-        st.dataframe(metrics_df, use_container_width=True)
-    with col_sum2:
-        st.markdown("#### 🎯 Overall Hybrid Accuracy Summary")
-        st.markdown(f"""
-        <div class="metric-card" style="text-align: center; padding: 25px;">
-            <div class="metric-title">MAPE-derived Forecast Accuracy</div>
-            <div class="metric-value" style="font-size: 2.5rem; color: #059669;">{accuracy_pct:.2f}%</div>
-            <div class="metric-delta delta-positive">Empirically Evaluated (100 - MAPE%) on Test Set</div>
-        </div>
-        """, unsafe_allow_html=True)
+    if metrics_df is None or accuracy_pct is None:
+        st.warning(
+            "⚠️ **Model metrics unavailable.** No stored `model_metrics.json` found and live evaluation "
+            "could not be completed. Re-run the training pipeline to generate real metrics: "
+            "`python -m src.train_sarimax` → `python -m src.train_lstm`"
+        )
+    else:
+        # Summary KPI row for model accuracy metrics
+        col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
+        sari_row = metrics_df.loc[metrics_df['Model'] == 'SARIMAX', 'Accuracy (%)']
+        sari_acc = float(sari_row.values[0]) if len(sari_row) > 0 and sari_row.values[0] is not None else None
+        acc_gain = (accuracy_pct - sari_acc) if sari_acc is not None else None
 
-    st.markdown("---")
-    st.markdown("#### ℹ️ Model Architecture Information")
-    
-    col_info1, col_info2 = st.columns(2)
-    with col_info1:
-        st.markdown("""
-        - **Model Name:** Hybrid SARIMAX + LSTM
-        - **Training Dataset:** NASA POWER Historical Dataset (1 Year Hourly Telemetry)
-        - **Prediction Horizon:** 24–48 Hours
-        """)
-    with col_info2:
-        st.markdown("""
-        - **Exogenous Features Used:**
-          • Direct Solar Irradiance (`direct_radiation`)
-          • Ambient Temperature (`temperature_2m`)
-          • Relative Humidity (`relative_humidity_2m`)
-          • Wind Speed (`wind_speed_10m`)
-          • Cloud Cover / Cloud Attenuation Index (`cloud_cover`)
-        """)
+        with col_kpi1:
+            st.metric("SARIMAX Baseline Accuracy", f"{sari_acc:.2f} %" if sari_acc is not None else "N/A")
+        with col_kpi2:
+            delta_str = f"+{acc_gain:.2f}% vs Baseline" if acc_gain is not None else None
+            st.metric("Hybrid Forecast Accuracy", f"{accuracy_pct:.2f} %", delta=delta_str)
+        with col_kpi3:
+            st.metric("Model Architecture", "SARIMAX + LSTM Residuals")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        col_sum1, col_sum2 = st.columns([2, 1])
+        with col_sum1:
+            st.markdown("#### 📊 Empirical Model Evaluation Metrics (Testing Dataset)")
+            st.dataframe(metrics_df, use_container_width=True)
+        with col_sum2:
+            st.markdown("#### 🎯 Overall Hybrid Accuracy Summary")
+            st.markdown(f"""
+            <div class="metric-card" style="text-align: center; padding: 25px;">
+                <div class="metric-title">MAPE-derived Forecast Accuracy</div>
+                <div class="metric-value" style="font-size: 2.5rem; color: #059669;">{accuracy_pct:.2f}%</div>
+                <div class="metric-delta delta-positive">Empirically Evaluated (100 - MAPE%) on Test Set</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("#### ℹ️ Model Architecture Information")
+
+        col_info1, col_info2 = st.columns(2)
+        with col_info1:
+            st.markdown("""
+            - **Model Name:** Hybrid SARIMAX + LSTM
+            - **Training Dataset:** NASA POWER Historical Dataset (1 Year Hourly Telemetry)
+            - **Prediction Horizon:** 24–48 Hours
+            """)
+        with col_info2:
+            st.markdown("""
+            - **Exogenous Features Used:**
+              • Direct Solar Irradiance (`direct_radiation`)
+              • Ambient Temperature (`temperature_2m`)
+              • Relative Humidity (`relative_humidity_2m`)
+              • Wind Speed (`wind_speed_10m`)
+              • Cloud Cover / Cloud Attenuation Index (`cloud_cover`)
+            """)
         
     st.markdown("---")
     st.markdown("#### 📉 Neural Residual Error Diagnostics")
