@@ -11,10 +11,36 @@ logger = logging.getLogger(__name__)
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
-def fetch_open_meteo_forecast(city_name: str, forecast_days: int = 7) -> List[Dict[str, Any]]:
+
+def compute_clear_sky_irradiance(lat: float, timestamps: pd.Series) -> np.ndarray:
+    """
+    Compute theoretical clear-sky direct irradiance (W/m²) from latitude and timestamps
+    using the same cosine-of-zenith physics formula as dataset_generator.py.
+    Matches the feature distribution the SARIMAX was trained on.
+    """
+    clear_sky_vals = []
+    for ts in pd.to_datetime(timestamps):
+        hour = ts.hour
+        day_of_year = ts.timetuple().tm_yday
+        declination = 23.45 * np.sin(np.radians((360 / 365) * (day_of_year - 81)))
+        hour_angle = (hour - 12) * 15.0
+        lat_rad = np.radians(lat)
+        dec_rad = np.radians(declination)
+        ha_rad = np.radians(hour_angle)
+        cos_zenith = (np.sin(lat_rad) * np.sin(dec_rad)
+                      + np.cos(lat_rad) * np.cos(dec_rad) * np.cos(ha_rad))
+        if cos_zenith > 0 and 6 <= hour <= 18:
+            cs = 1000.0 * cos_zenith * (1 + 0.033 * np.cos(np.radians(360 * day_of_year / 365)))
+            clear_sky_vals.append(float(np.clip(cs, 0.0, 1150.0)))
+        else:
+            clear_sky_vals.append(0.0)
+    return np.array(clear_sky_vals, dtype=np.float32)
+
+def fetch_open_meteo_forecast(city_name: str, forecast_days: int = 7) -> Tuple[List[Dict[str, Any]], str]:
     """
     Fetch hourly forecast from Open-Meteo API for specified city.
-    Returns list of dict records.
+    Returns (records, source) where source is "live" or "synthetic".
+    Callers should surface a visible warning when source == "synthetic".
     """
     if city_name not in CITIES:
         raise ValueError(f"City '{city_name}' is not in supported list: {list(CITIES.keys())}")
@@ -53,12 +79,12 @@ def fetch_open_meteo_forecast(city_name: str, forecast_days: int = 7) -> List[Di
                 "wind_speed": float(winds[i]) if winds[i] is not None else 3.5
             })
 
-        logger.info(f"Successfully fetched {len(records)} hours of weather forecast for {city_name} from Open-Meteo")
-        return records
+        logger.info(f"Successfully fetched {len(records)} hours of live weather for {city_name} from Open-Meteo.")
+        return records, "live"
 
     except Exception as e:
         logger.warning(f"Failed to fetch Open-Meteo forecast for {city_name}: {e}. Falling back to synthetic weather generation.")
-        return generate_synthetic_weather_records(city_name, days=forecast_days)
+        return generate_synthetic_weather_records(city_name, days=forecast_days), "synthetic"
 
 def generate_synthetic_weather_records(city_name: str, days: int = 7) -> List[Dict[str, Any]]:
     """
@@ -96,17 +122,25 @@ def generate_synthetic_weather_records(city_name: str, days: int = 7) -> List[Di
             "humidity": round(humidity, 2),
             "cloud_cover": round(cloud_cover, 2),
             "irradiance": round(irradiance, 2),
-            "wind_speed": round(wind_speed, 2)
+            "wind_speed": round(wind_speed, 2),
+            "clear_sky_irradiance": round(
+                compute_clear_sky_irradiance(
+                    CITIES[city_name]["lat"],
+                    pd.Series([dt.strftime("%Y-%m-%d %H:%M:%S")])
+                )[0], 2
+            )
         })
         
     return records
 
-def sync_city_weather_to_sqlite(city_name: str, forecast_days: int = 7) -> pd.DataFrame:
+def sync_city_weather_to_sqlite(city_name: str, forecast_days: int = 7) -> Tuple[pd.DataFrame, str]:
     """
     Fetch weather from Open-Meteo, store into SQLite database, and read back from SQLite.
-    Returns DataFrame read strictly from SQLite with standard feature column names.
+    Returns (DataFrame, source) where source is "live" or "synthetic".
+    The source flag should be surfaced in the UI when synthetic data is in use.
+    Also injects clear_sky_irradiance from physics formula to match training data distribution.
     """
-    records = fetch_open_meteo_forecast(city_name, forecast_days=forecast_days)
+    records, source = fetch_open_meteo_forecast(city_name, forecast_days=forecast_days)
     insert_weather_records(records, db_path=DB_PATH)
     df_sqlite = fetch_weather_records(city_name, limit=forecast_days * 24, db_path=DB_PATH)
     
@@ -119,5 +153,14 @@ def sync_city_weather_to_sqlite(city_name: str, forecast_days: int = 7) -> pd.Da
         df_sqlite["wind_speed_10m"] = df_sqlite["wind_speed"]
     if "irradiance" in df_sqlite.columns:
         df_sqlite["direct_radiation"] = df_sqlite["irradiance"]
-        
-    return df_sqlite
+
+    # Inject physics-based clear_sky_irradiance so cloud_attenuation_index
+    # is computed correctly in feature_engineering (matches training distribution)
+    lat = CITIES[city_name]["lat"]
+    if "clear_sky_irradiance" not in df_sqlite.columns or df_sqlite["clear_sky_irradiance"].isna().all():
+        df_sqlite["clear_sky_irradiance"] = compute_clear_sky_irradiance(
+            lat, df_sqlite["timestamp"]
+        )
+        logger.info(f"Injected clear_sky_irradiance for {city_name} (lat={lat}).")
+
+    return df_sqlite, source

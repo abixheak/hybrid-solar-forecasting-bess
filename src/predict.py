@@ -3,7 +3,10 @@ import numpy as np
 import pandas as pd
 import joblib
 import logging
+import sys
 from typing import Dict, Any, Tuple
+
+import keras
 
 from config import (
     SARIMAX_MODEL_PATH,
@@ -12,12 +15,9 @@ from config import (
     ALL_EXOG_FEATURES,
     TARGET_COL
 )
-import sys
 from src.feature_engineering import add_engineered_features, load_scalers
 from src.train_sarimax import LinearExogBaseline
-from src.train_lstm import ResidualNeuralNetwork
 setattr(sys.modules['__main__'], 'LinearExogBaseline', LinearExogBaseline)
-setattr(sys.modules['__main__'], 'ResidualNeuralNetwork', ResidualNeuralNetwork)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ class HybridForecaster:
         self.sarimax_model = None
         self.lstm_model = None
         self.scalers = None
+        self.res_std = 25.0  # fallback; overwritten by scalers.pkl if res_std key exists
         self._load_artifacts()
 
     def _load_artifacts(self):
@@ -45,8 +46,10 @@ class HybridForecaster:
         logger.info("Loading pretrained model artifacts...")
         self.sarimax_model = joblib.load(SARIMAX_MODEL_PATH)
         self.scalers = load_scalers(SCALER_PATH)
-        self.lstm_model = joblib.load(LSTM_MODEL_PATH)
-        logger.info("Pretrained model artifacts loaded successfully.")
+        self.lstm_model = keras.models.load_model(LSTM_MODEL_PATH)
+        # Load residual std-dev saved during training for correct inverse-scaling
+        self.res_std = float(self.scalers.get("res_std", 25.0))
+        logger.info(f"Pretrained model artifacts loaded successfully. res_std={self.res_std:.4f} kW")
 
     def predict(self, weather_df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -57,30 +60,28 @@ class HybridForecaster:
         df_feat = add_engineered_features(weather_df)
         
         # 1. SARIMAX Baseline Prediction
+        # Primary path: get_forecast(steps, exog) — correct out-of-sample inference.
+        # Fallback chain handles older statsmodels versions that lack get_forecast.
         exog_df = df_feat[ALL_EXOG_FEATURES]
-        
+        sarimax_ci_width = np.zeros(len(df_feat))
+
         try:
-            pred_obj = self.sarimax_model.get_prediction(start=0, end=len(df_feat) - 1, exog=exog_df)
+            pred_obj = self.sarimax_model.get_forecast(steps=len(df_feat), exog=exog_df)
             sarimax_preds = pred_obj.predicted_mean.values if hasattr(pred_obj.predicted_mean, "values") else np.array(pred_obj.predicted_mean)
             conf_int = pred_obj.conf_int()
             conf_int_vals = conf_int.values if hasattr(conf_int, "values") else np.array(conf_int)
-            sarimax_ci_width = conf_int_vals[:, 1] - conf_int_vals[:, 0] if conf_int_vals.shape[1] == 2 else np.zeros(len(df_feat))
+            if conf_int_vals.shape[1] == 2:
+                sarimax_ci_width = conf_int_vals[:, 1] - conf_int_vals[:, 0]
         except Exception:
             try:
-                pred_obj = self.sarimax_model.get_forecast(steps=len(df_feat), exog=exog_df)
-                sarimax_preds = pred_obj.predicted_mean.values if hasattr(pred_obj.predicted_mean, "values") else np.array(pred_obj.predicted_mean)
-                conf_int = pred_obj.conf_int()
-                conf_int_vals = conf_int.values if hasattr(conf_int, "values") else np.array(conf_int)
-                sarimax_ci_width = conf_int_vals[:, 1] - conf_int_vals[:, 0] if conf_int_vals.shape[1] == 2 else np.zeros(len(df_feat))
+                raw_p = self.sarimax_model.forecast(steps=len(df_feat), exog=exog_df)
+                sarimax_preds = raw_p.values if hasattr(raw_p, "values") else np.array(raw_p)
             except Exception:
-                try:
-                    raw_p = self.sarimax_model.predict(start=0, end=len(df_feat) - 1, exog=exog_df)
-                    sarimax_preds = raw_p.values if hasattr(raw_p, "values") else np.array(raw_p)
-                except Exception:
-                    raw_p = self.sarimax_model.forecast(steps=len(df_feat), exog=exog_df)
-                    sarimax_preds = raw_p.values if hasattr(raw_p, "values") else np.array(raw_p)
-                sarimax_ci_width = np.zeros(len(df_feat))
-            
+                # Last-resort: in-sample predict — only valid for data within training period
+                logger.warning("SARIMAX get_forecast and forecast both failed; falling back to in-sample predict(). Results may be inaccurate for live data.")
+                raw_p = self.sarimax_model.predict(start=0, end=len(df_feat) - 1, exog=exog_df)
+                sarimax_preds = raw_p.values if hasattr(raw_p, "values") else np.array(raw_p)
+
         sarimax_preds = np.clip(sarimax_preds, 0.0, None)
         
         # 2. Residual Error Correction Prediction
@@ -118,7 +119,7 @@ class HybridForecaster:
             except Exception:
                 raw_res_pred = 0.0
             
-            res_kw = raw_res_pred * 25.0
+            res_kw = raw_res_pred * 3.0 * self.res_std  # invert training normalization: scaled_res = res / (3*res_std)
             lstm_corrections.append(res_kw)
             current_res_seq = np.vstack([current_res_seq[1:], [[raw_res_pred]]])
             

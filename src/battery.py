@@ -33,8 +33,8 @@ def generate_demand_profile(
         peak_demand = 240.0
 
     demand_list = []
-    np.random.seed(101)
-    
+    rng = np.random.default_rng(101)  # Local RNG — does not affect global numpy random state
+
     for ts in pd.to_datetime(timestamps):
         hour = ts.hour
         is_weekend = ts.weekday() >= 5
@@ -57,7 +57,7 @@ def generate_demand_profile(
         weekend_adj = 0.85 if is_weekend else 1.0
         
         # Random micro-fluctuations (+/- 3%)
-        micro_noise = np.random.normal(1.0, 0.03)
+        micro_noise = rng.normal(1.0, 0.03)
         
         load_kw = base_demand + (peak_demand - base_demand) * factor * weekend_adj * micro_noise
         load_kw *= peak_load_modifier
@@ -76,7 +76,8 @@ def simulate_bess_operations(
     discharge_eff: float = 0.95,
     min_soc_pct: float = 10.0,
     max_soc_pct: float = 90.0,
-    demand_kw_series: pd.Series = None
+    demand_kw_series: pd.Series = None,
+    max_grid_export_kw: float = float("inf")  # Grid export cap; surplus above cap is curtailed
 ) -> pd.DataFrame:
     """
     Simulate Battery Energy Storage System (BESS) dispatch dynamics hour-by-hour.
@@ -167,7 +168,9 @@ def simulate_bess_operations(
             
             remaining_surplus = surplus_kw - charge_power
             if remaining_surplus > 0:
-                grid_export = remaining_surplus # All excess solar exported to grid
+                # Apply grid export cap; route anything above it into curtailment
+                grid_export = min(remaining_surplus, max_grid_export_kw)
+                curtailment = remaining_surplus - grid_export
                 
             # Operational state assignment
             if grid_export > 0 and current_soc_kwh >= max_soc_kwh - 0.5:
@@ -253,7 +256,8 @@ def simulate_bess_operations_predictive(
     min_soc_pct: float = 10.0,
     max_soc_pct: float = 90.0,
     demand_kw_series: pd.Series = None,
-    horizon_hours: int = 24
+    horizon_hours: int = 24,
+    max_grid_export_kw: float = float("inf")  # Grid export cap; surplus above cap is curtailed
 ) -> pd.DataFrame:
     """
     Simulate BESS operations with a forecast-aware predictive controller.
@@ -375,7 +379,9 @@ def simulate_bess_operations_predictive(
             
             remaining_surplus = surplus_kw - charge_power
             if remaining_surplus > 0:
-                grid_export = remaining_surplus
+                # Apply grid export cap; route anything above it into curtailment
+                grid_export = min(remaining_surplus, max_grid_export_kw)
+                curtailment = remaining_surplus - grid_export
                 
             if grid_export > 0 and current_soc_kwh >= required_soc_target_kwh - 0.5:
                 state = "🟢 SURPLUS / EXPORT"
